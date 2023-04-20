@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <LangVersion>11</LangVersion>
+    <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
+    <PublishSingleFile>true</PublishSingleFile>
+    <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
+    <TargetFramework>net7.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ClrHeapAllocationAnalyzer" Version="3.0.0" PrivateAssets="all" />
+    <PackageReference Include="CommunityToolkit.Diagnostics" Version="8.1.0" />
+  </ItemGroup>
+
+</Project>
