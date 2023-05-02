@@ -97,9 +97,9 @@ public sealed class Protodec
                 else
                 {
                     ParseMessage(type, skipEnums);
-                    message.Imports.Add(type.Name);
                 }
 
+                message.Imports.Add(type.Name);
                 return type.Name;
             }
         }
@@ -107,7 +107,7 @@ public sealed class Protodec
 
     private void ParseEnum(Type enumEnum, ProtobufMessage message)
     {
-        if ((enumEnum.IsNested && message.Nested.ContainsKey(enumEnum.Name)) 
+        if ((enumEnum.IsNested && message.Nested.ContainsKey(enumEnum.Name))
          || Enums.ContainsKey(enumEnum.Name))
             return;
 
@@ -120,7 +120,7 @@ public sealed class Protodec
                                        ?.ConstructorArguments[0]
                                         .Value
                                        as string
-                                ?? TranslateEnumFieldName(field.Name);
+                                ?? TranslateEnumFieldName(enumEnum.Name, field.Name);
 
             protoEnum.Fields.Add(enumFieldId, enumFieldName);
         }
@@ -131,7 +131,6 @@ public sealed class Protodec
         }
         else
         {
-            message.Imports.Add(protoEnum.Name);
             Enums.Add(protoEnum.Name, protoEnum);
         }
     }
@@ -161,8 +160,10 @@ public sealed class Protodec
         name.IsBeebyted() ? name : name.ToSnakeCaseLower();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static string TranslateEnumFieldName(string name) =>
-        name.IsBeebyted() ? name : name.ToSnakeCaseUpper();
+    private static string TranslateEnumFieldName(string enumName, string fieldName) =>
+        enumName.IsBeebyted()
+            ? enumName + '_' + fieldName.ToSnakeCaseUpper()
+            : (enumName + fieldName).ToSnakeCaseUpper();
 
     private bool TryParseWriteToMethod(Type targetClass)
     {

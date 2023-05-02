@@ -6,13 +6,13 @@ using protodec;
 
 const string indent = "  ";
 const string help   = """
-    Usage: protodec(.exe) [options] <target_assembly_path> <out_path>
-    Options:
-      --skip_enums                  Skip parsing enums and replace references to then with int32.
-      --include_runtime_assemblies  Add the assemblies of the current runtime to the search path.
+    Usage: protodec(.exe) <target_assembly_path> <out_path> [options]
     Arguments:
       target_assembly_path  Either a single assembly or a directory of assemblies to be parsed.
       out_path              An existing directory to output into individual files, otherwise output to a single file.
+    Options:
+      --skip_enums                  Skip parsing enums and replace references to then with int32.
+      --include_runtime_assemblies  Add the assemblies of the current runtime to the search path.
     """;
 
 if (args.Length < 2)
