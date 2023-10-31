@@ -3,18 +3,18 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace protodec;
+namespace LibProtodec;
 
-public sealed record ProtobufMessage(string Name) : IWritable
+public sealed class Message : Protobuf
 {
-    public readonly HashSet<string>                             Imports = new();
-    public readonly Dictionary<string, int[]>                   OneOfs  = new();
-    public readonly Dictionary<int, (string Type, string Name)> Fields  = new();
-    public readonly Dictionary<string, IWritable>               Nested  = new();
+    public readonly HashSet<string>                                              Imports = new();
+    public readonly Dictionary<string, int[]>                                    OneOfs  = new();
+    public readonly Dictionary<int, (bool IsOptional, string Type, string Name)> Fields  = new();
+    public readonly Dictionary<string, Protobuf>                                 Nested  = new();
 
-    public void WriteFileTo(IndentedTextWriter writer)
+    public override void WriteFileTo(IndentedTextWriter writer)
     {
-        Protodec.WritePreambleTo(writer);
+        this.WritePreambleTo(writer);
 
         if (Imports.Count > 0)
         {
@@ -31,12 +31,22 @@ public sealed record ProtobufMessage(string Name) : IWritable
         WriteTo(writer);
     }
 
-    public void WriteTo(IndentedTextWriter writer)
+    public override void WriteTo(IndentedTextWriter writer)
     {
         writer.Write("message ");
-        writer.Write(Name);
+        writer.Write(this.Name);
         writer.WriteLine(" {");
         writer.Indent++;
+
+        int[] oneOfs = OneOfs.SelectMany(oneOf => oneOf.Value).ToArray();
+
+        foreach ((int fieldId, (bool, string, string) field) in Fields)
+        {
+            if (oneOfs.Contains(fieldId))
+                continue;
+
+            WriteField(writer, fieldId, field);
+        }
 
         foreach ((string name, int[] fieldIds) in OneOfs)
         {
@@ -55,17 +65,7 @@ public sealed record ProtobufMessage(string Name) : IWritable
             writer.WriteLine('}');
         }
 
-        int[] oneOfs = OneOfs.SelectMany(oneOf => oneOf.Value).ToArray();
-
-        foreach ((int fieldId, (string, string) field) in Fields)
-        {
-            if (oneOfs.Contains(fieldId))
-                continue;
-
-            WriteField(writer, fieldId, field);
-        }
-
-        foreach (IWritable nested in Nested.Values)
+        foreach (Protobuf nested in Nested.Values)
         {
             nested.WriteTo(writer);
             writer.WriteLine();
@@ -75,8 +75,13 @@ public sealed record ProtobufMessage(string Name) : IWritable
         writer.Write('}');
     }
 
-    private static void WriteField(TextWriter writer, int fieldId, (string Type, string Name) field)
+    private static void WriteField(TextWriter writer, int fieldId, (bool IsOptional, string Type, string Name) field)
     {
+        if (field.IsOptional)
+        {
+            writer.Write("optional ");
+        }
+
         writer.Write(field.Type);
         writer.Write(' ');
         writer.Write(field.Name);

@@ -1,24 +1,29 @@
 ﻿using System.CodeDom.Compiler;
 using System.Collections.Generic;
 
-namespace protodec;
+namespace LibProtodec;
 
-public sealed record ProtobufEnum(string Name) : IWritable
+public sealed class Enum : Protobuf
 {
-    public readonly Dictionary<int, string> Fields = new();
+    public readonly List<KeyValuePair<int, string>> Fields = new();
 
-    public void WriteFileTo(IndentedTextWriter writer)
+    public override void WriteFileTo(IndentedTextWriter writer)
     {
-        Protodec.WritePreambleTo(writer);
+        this.WritePreambleTo(writer);
         WriteTo(writer);
     }
 
-    public void WriteTo(IndentedTextWriter writer)
+    public override void WriteTo(IndentedTextWriter writer)
     {
         writer.Write("enum ");
-        writer.Write(Name);
+        writer.Write(this.Name);
         writer.WriteLine(" {");
         writer.Indent++;
+
+        if (Fields.ContainsDuplicateKey())
+        {
+            writer.WriteLine("""option allow_alias = true;""");
+        }
 
         foreach ((int id, string name) in Fields)
         {

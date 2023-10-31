@@ -5,23 +5,24 @@ A tool to decompile protobuf parser/serializer classes compiled by [protoc](http
 Usage
 -----
 ```
-Usage: protodec(.exe) <target_assembly_path> <out_path> [options]
+Usage: protodec(.exe) <target_assembly_dir> <out_path> [target_assembly_name] [options]
 Arguments:
-  target_assembly_path  Either a single assembly or a directory of assemblies to be parsed.
+  target_assembly_dir   A directory of assemblies to be loaded.
   out_path              An existing directory to output into individual files, otherwise output to a single file.
+  target_assembly_name  The name of an assembly to parse. If omitted, all assemblies in the target_assembly_dir will be parsed.
 Options:
-  --skip_enums                  Skip parsing enums and replace references to then with int32.
-  --include_runtime_assemblies  Add the assemblies of the current runtime to the search path.
+  --skip_enums          Skip parsing enums and replace references to them with int32.
 ```
 
 Limitations
 -----------
 - Integers are assumed to be (u)int32/64 as C# doesn't differentiate between them and sint32/64 and (s)fixed32/64.
-  This could be solved by parsing the writer methods, however this wouldn't work on hollow assemblies such as DummyDlls produced by Il2CppDumper
-### Il2CppDumper
-- The Name parameter of OriginalNameAttribute is not dumped. In this case the C# names are used after conforming them to protobuf conventions
+### Decompiling from [Il2CppDumper](https://github.com/Perfare/Il2CppDumper) DummyDLLs
+- The `Name` parameter of `OriginalNameAttribute` is not dumped. In this case the C# names are used after conforming them to protobuf conventions
 - Dumped assemblies depend on strong-named core libs, however the ones dumped are not strong-named.
-  This interferes with loading and can be bypassed by loading the strong-named libs from your runtime by passing the `--include_runtime_assemblies` flag
+  This interferes with loading and can be mitigated by copying the assemblies from your runtime into the target assembly directory.
+
+I recommend using [Cpp2IL](https://github.com/SamboyCoding/Cpp2IL) instead of Il2CppDumper.
 
 License
 -------

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Authors>Xpl0itR</Authors>
+    <Copyright>Copyright © 2023 Xpl0itR</Copyright>
+    <Description>A library to decompile protobuf parser/serializer classes compiled by protoc, from dotnet assemblies back into .proto definitions</Description>
+    <IncludeSymbols>true</IncludeSymbols>
+    <IsPackable>true</IsPackable>
+    <LangVersion>11</LangVersion>
+    <Nullable>enable</Nullable>
+    <OutputType>Library</OutputType>
+    <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <TargetFramework>net7.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Diagnostics" Version="8.2.2" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
+    <PackageReference Include="System.Reflection.MetadataLoadContext" Version="7.0.0" />
+  </ItemGroup>
+
+</Project>
