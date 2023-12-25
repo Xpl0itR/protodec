@@ -1,11 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <LangVersion>11</LangVersion>
+    <BaseOutputPath>$(SolutionDir)bin/$(MSBuildProjectName)</BaseOutputPath>
+    <LangVersion>Latest</LangVersion>
     <Nullable>enable</Nullable>
     <OutputType>Exe</OutputType>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>

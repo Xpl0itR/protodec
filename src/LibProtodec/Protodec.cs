@@ -12,14 +12,8 @@ public sealed class Protodec
 {
     public delegate bool LookupFunc(string key, [MaybeNullWhen(false)] out string value);
 
-    private readonly Dictionary<string, Protobuf> _protobufs;
-    private readonly HashSet<string>              _currentDescent;
-
-    public Protodec()
-    {
-        _protobufs      = new Dictionary<string, Protobuf>();
-        _currentDescent = new HashSet<string>();
-    }
+    private readonly Dictionary<string, Protobuf> _protobufs      = [];
+    private readonly HashSet<string>              _currentDescent = [];
 
     public LookupFunc? CustomTypeLookup { get; init; }
 
@@ -40,11 +34,11 @@ public sealed class Protodec
         }
     }
 
-    public void ParseMessage(Type type, bool skipEnums = false)
+    public void ParseMessage(Type type, bool skipEnums = false, bool skipPropertiesWithoutProtocAttribute = false)
     {
         Guard.IsTrue(type.IsClass);
 
-        ParseMessageInternal(type, skipEnums, null);
+        ParseMessageInternal(type, skipEnums, skipPropertiesWithoutProtocAttribute, null);
         _currentDescent.Clear();
     }
 
@@ -66,7 +60,7 @@ public sealed class Protodec
             || !_currentDescent.Add(type.Name);
     }
 
-    private void ParseMessageInternal(Type messageClass, bool skipEnums, Message? parentMessage)
+    private void ParseMessageInternal(Type messageClass, bool skipEnums, bool skipPropertiesWithoutProtocAttribute, Message? parentMessage)
     {
         if (IsParsed(messageClass, parentMessage, out Dictionary<string, Protobuf> protobufs))
         {
@@ -87,7 +81,9 @@ public sealed class Protodec
         {
             PropertyInfo property = properties[pi];
 
-            if (property.GetMethod is null || property.GetMethod.IsVirtual)
+            if (property.GetMethod is null
+             || property.GetMethod.IsVirtual 
+             || (skipPropertiesWithoutProtocAttribute && !HasProtocAttribute(property)))
             {
                 fi--;
                 continue;
@@ -116,7 +112,7 @@ public sealed class Protodec
 
             int    msgFieldId         = (int)idField.GetRawConstantValue()!;
             bool   msgFieldIsOptional = false;
-            string msgFieldType       = ParseFieldType(propertyType, skipEnums, message);
+            string msgFieldType       = ParseFieldType(propertyType, skipEnums, skipPropertiesWithoutProtocAttribute, message);
             string msgFieldName       = TranslateMessageFieldName(property.Name);
 
             // optional protobuf fields will generate an additional "Has" get-only boolean property immediately after the real property
@@ -157,7 +153,7 @@ public sealed class Protodec
         protobufs.Add(@enum.Name, @enum);
     }
 
-    private string ParseFieldType(Type type, bool skipEnums, Message message)
+    private string ParseFieldType(Type type, bool skipEnums, bool skipPropertiesWithoutProtocAttribute, Message message)
     {
         switch (type.Name)
         {
@@ -184,11 +180,11 @@ public sealed class Protodec
         switch (type.GenericTypeArguments.Length)
         {
             case 1:
-                string t = ParseFieldType(type.GenericTypeArguments[0], skipEnums, message);
+                string t = ParseFieldType(type.GenericTypeArguments[0], skipEnums, skipPropertiesWithoutProtocAttribute, message);
                 return "repeated " + t;
             case 2:
-                string t1 = ParseFieldType(type.GenericTypeArguments[0], skipEnums, message);
-                string t2 = ParseFieldType(type.GenericTypeArguments[1], skipEnums, message);
+                string t1 = ParseFieldType(type.GenericTypeArguments[0], skipEnums, skipPropertiesWithoutProtocAttribute, message);
+                string t2 = ParseFieldType(type.GenericTypeArguments[1], skipEnums, skipPropertiesWithoutProtocAttribute, message);
                 return $"map<{t1}, {t2}>";
         }
 
@@ -208,7 +204,7 @@ public sealed class Protodec
         }
         else
         {
-            ParseMessageInternal(type, skipEnums, message);
+            ParseMessageInternal(type, skipEnums, skipPropertiesWithoutProtocAttribute, message);
         }
 
         if (!type.IsNested)
@@ -218,6 +214,12 @@ public sealed class Protodec
 
         return type.Name;
     }
+
+    private static bool HasProtocAttribute(PropertyInfo property) =>
+        property.GetCustomAttributesData()
+                .Any(attr =>
+                         attr.AttributeType.Name                      == "GeneratedCodeAttribute"
+                      && attr.ConstructorArguments[0].Value as string == "protoc");
 
     private string TranslateProtobufName(string name) =>
         CustomNameLookup?.Invoke(name, out string? translatedName) == true

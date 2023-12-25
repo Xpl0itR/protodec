@@ -5,7 +5,7 @@ namespace LibProtodec;
 
 public sealed class Enum : Protobuf
 {
-    public readonly List<KeyValuePair<int, string>> Fields = new();
+    public readonly List<KeyValuePair<int, string>> Fields = [];
 
     public override void WriteFileTo(IndentedTextWriter writer)
     {
@@ -22,7 +22,7 @@ public sealed class Enum : Protobuf
 
         if (Fields.ContainsDuplicateKey())
         {
-            writer.WriteLine("""option allow_alias = true;""");
+            writer.WriteLine("option allow_alias = true;");
         }
 
         foreach ((int id, string name) in Fields)

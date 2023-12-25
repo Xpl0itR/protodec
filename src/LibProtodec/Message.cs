@@ -7,10 +7,10 @@ namespace LibProtodec;
 
 public sealed class Message : Protobuf
 {
-    public readonly HashSet<string>                                              Imports = new();
-    public readonly Dictionary<string, int[]>                                    OneOfs  = new();
-    public readonly Dictionary<int, (bool IsOptional, string Type, string Name)> Fields  = new();
-    public readonly Dictionary<string, Protobuf>                                 Nested  = new();
+    public readonly HashSet<string>                                              Imports = [];
+    public readonly Dictionary<string, int[]>                                    OneOfs  = [];
+    public readonly Dictionary<int, (bool IsOptional, string Type, string Name)> Fields  = [];
+    public readonly Dictionary<string, Protobuf>                                 Nested  = [];
 
     public override void WriteFileTo(IndentedTextWriter writer)
     {

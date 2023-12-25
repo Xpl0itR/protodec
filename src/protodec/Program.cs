@@ -12,7 +12,8 @@ const string help   = """
       out_path              An existing directory to output into individual files, otherwise output to a single file.
       target_assembly_name  The name of an assembly to parse. If omitted, all assemblies in the target_assembly_dir will be parsed.
     Options:
-      --skip_enums          Skip parsing enums and replace references to them with int32.
+      --skip_enums                                Skip parsing enums and replace references to them with int32.
+      --skip_properties_without_protoc_attribute  Skip properties that aren't decorated with `GeneratedCode("protoc")` when parsing
     """;
 
 if (args.Length < 2)
@@ -30,13 +31,14 @@ if (args.Length > 2 && !args[2].StartsWith('-'))
 string assemblyDir = args[0];
 string outPath     = Path.GetFullPath(args[1]);
 bool   skipEnums   = args.Contains("--skip_enums");
+bool   skipPropertiesWithoutProtocAttribute = args.Contains("--skip_properties_without_protoc_attribute");
 
 using AssemblyInspector inspector = new(assemblyDir, assemblyName);
 Protodec protodec = new();
 
 foreach (Type message in inspector.GetProtobufMessageTypes())
 {
-    protodec.ParseMessage(message, skipEnums);
+    protodec.ParseMessage(message, skipEnums, skipPropertiesWithoutProtocAttribute);
 }
 
 if (Directory.Exists(outPath))

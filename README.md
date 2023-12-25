@@ -11,7 +11,8 @@ Arguments:
   out_path              An existing directory to output into individual files, otherwise output to a single file.
   target_assembly_name  The name of an assembly to parse. If omitted, all assemblies in the target_assembly_dir will be parsed.
 Options:
-  --skip_enums          Skip parsing enums and replace references to them with int32.
+  --skip_enums                                Skip parsing enums and replace references to them with int32.
+  --skip_properties_without_protoc_attribute  Skip properties that aren't decorated with `GeneratedCode("protoc")` when parsing
 ```
 
 Limitations

@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.6.33513.286
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "protodec", "protodec\protodec.csproj", "{A5493BF4-F78C-4DCF-B449-D9A9A52FB5F0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "protodec", "src\protodec\protodec.csproj", "{A5493BF4-F78C-4DCF-B449-D9A9A52FB5F0}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LibProtodec", "LibProtodec\LibProtodec.csproj", "{5F6DAD82-D9AD-4CE5-86E6-D20C9F059A4D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LibProtodec", "src\LibProtodec\LibProtodec.csproj", "{5F6DAD82-D9AD-4CE5-86E6-D20C9F059A4D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
