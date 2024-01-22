@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  release:
+    strategy:
+      matrix:
+        include:
+          - runtime: 'linux-x64'
+            os:      'ubuntu-latest'
+          - runtime: 'win-x64'
+            os:      'windows-latest'
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v4
+
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build protodec
+        run:  dotnet publish --configuration Release --runtime ${{ matrix.runtime }} /p:VersionPrefix=${{ github.ref_name }} /p:ContinuousIntegrationBuild=true
+
+      - name: Pack LibProtodec
+        if:   matrix.os == 'ubuntu-latest'
+        run:  dotnet pack --configuration Release /p:VersionPrefix=${{ github.ref_name }} /p:ContinuousIntegrationBuild=true
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            bin/protodec/Release/net8.0/${{ matrix.runtime }}/publish/protodec*
+            bin/LibProtodec/Release/*nupkg

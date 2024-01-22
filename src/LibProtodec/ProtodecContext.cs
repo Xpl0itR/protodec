@@ -1,17 +1,25 @@
+// Copyright © 2023-2024 Xpl0itR
+// 
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
+using SystemEx;
+using SystemEx.Collections;
 using CommunityToolkit.Diagnostics;
 
 namespace LibProtodec;
 
-public sealed class Protodec
-{
-    public delegate bool LookupFunc(string key, [MaybeNullWhen(false)] out string value);
+public delegate bool LookupFunc(string key, [MaybeNullWhen(false)] out string value);
 
+public sealed class ProtodecContext
+{
     private readonly Dictionary<string, Protobuf> _protobufs      = [];
     private readonly HashSet<string>              _currentDescent = [];
 
@@ -81,9 +89,8 @@ public sealed class Protodec
         {
             PropertyInfo property = properties[pi];
 
-            if (property.GetMethod is null
-             || property.GetMethod.IsVirtual 
-             || (skipPropertiesWithoutProtocAttribute && !HasProtocAttribute(property)))
+            if ((skipPropertiesWithoutProtocAttribute && !HasProtocAttribute(property))
+             || property.GetMethod?.IsVirtual != false)
             {
                 fi--;
                 continue;
@@ -92,7 +99,8 @@ public sealed class Protodec
             Type propertyType = property.PropertyType;
 
             // only OneOf enums are defined nested directly in the message class
-            if (propertyType.IsEnum && propertyType.DeclaringType?.Name == message.Name)
+            if (propertyType.IsEnum
+             && propertyType.DeclaringType?.Name == messageClass.Name)
             {
                 string oneOfName = TranslateOneOfName(property.Name);
                 int[] oneOfProtoFieldIds = propertyType.GetFields(BindingFlags.Public | BindingFlags.Static)
@@ -158,23 +166,23 @@ public sealed class Protodec
         switch (type.Name)
         {
             case "ByteString":
-                return "bytes";
+                return FieldTypeName.Bytes;
             case nameof(String):
-                return "string";
+                return FieldTypeName.String;
             case nameof(Boolean):
-                return "bool";
+                return FieldTypeName.Bool;
             case nameof(Double):
-                return "double";
+                return FieldTypeName.Double;
             case nameof(UInt32):
-                return "uint32";
+                return FieldTypeName.UInt32;
             case nameof(UInt64):
-                return "uint64";
+                return FieldTypeName.UInt64;
             case nameof(Int32):
-                return "int32";
+                return FieldTypeName.Int32;
             case nameof(Int64):
-                return "int64";
+                return FieldTypeName.Int64;
             case nameof(Single):
-                return "float";
+                return FieldTypeName.Float;
         }
 
         switch (type.GenericTypeArguments.Length)
@@ -197,7 +205,7 @@ public sealed class Protodec
         {
             if (skipEnums)
             {
-                return "int32";
+                return FieldTypeName.Int32;
             }
 
             ParseEnumInternal(type, message);
@@ -214,12 +222,6 @@ public sealed class Protodec
 
         return type.Name;
     }
-
-    private static bool HasProtocAttribute(PropertyInfo property) =>
-        property.GetCustomAttributesData()
-                .Any(attr =>
-                         attr.AttributeType.Name                      == "GeneratedCodeAttribute"
-                      && attr.ConstructorArguments[0].Value as string == "protoc");
 
     private string TranslateProtobufName(string name) =>
         CustomNameLookup?.Invoke(name, out string? translatedName) == true
@@ -253,7 +255,7 @@ public sealed class Protodec
             return translatedName;
         }
 
-        if (!enumName.IsBeebyted())
+        if (!IsBeebyted(enumName))
         {
             enumName = enumName.ToSnakeCaseUpper();
         }
@@ -269,6 +271,15 @@ public sealed class Protodec
         }
 
         translatedName = name;
-        return name.IsBeebyted();
+        return IsBeebyted(name);
     }
+
+    // ReSharper disable once IdentifierTypo
+    private static bool IsBeebyted(string name) =>
+        name.Length == 11 && name.CountUpper() == 11;
+
+    private static bool HasProtocAttribute(MemberInfo member) =>
+        member.GetCustomAttributesData()
+              .Any(attr => attr.AttributeType.Name                      == nameof(GeneratedCodeAttribute)
+                        && attr.ConstructorArguments[0].Value as string == "protoc");
 }

@@ -5,12 +5,13 @@
     <LangVersion>Latest</LangVersion>
     <Nullable>enable</Nullable>
     <OutputType>Exe</OutputType>
+    <PublishAot>true</PublishAot>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
     <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\LibProtodec\LibProtodec.csproj" />
+    <ProjectReference Include="$(SolutionDir)src\LibProtodec\LibProtodec.csproj" />
   </ItemGroup>
 
 </Project>
