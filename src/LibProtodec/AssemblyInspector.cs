@@ -35,7 +35,8 @@ public sealed class AssemblyInspector : IDisposable
 
     public IEnumerable<Type> GetProtobufMessageTypes()
     {
-        Type? googleProtobufIMessage = AssemblyContext.LoadFromAssemblyName("Google.Protobuf")
+        Type? googleProtobufIMessage = LoadedTypes.SingleOrDefault(static type => type?.FullName == "Google.Protobuf.IMessage", null)
+                                    ?? AssemblyContext.LoadFromAssemblyName("Google.Protobuf")
                                                       .GetType("Google.Protobuf.IMessage");
         return from type
                    in LoadedTypes
@@ -58,7 +59,7 @@ public sealed class AssemblyInspector : IDisposable
     {
         public readonly IReadOnlyDictionary<string, string> AssemblyPathLookup =
             assemblyPaths.ToDictionary(
-                path => Path.GetFileNameWithoutExtension(path),
+                static path => Path.GetFileNameWithoutExtension(path),
                 StringComparer.OrdinalIgnoreCase);
 
         /// <inheritdoc />

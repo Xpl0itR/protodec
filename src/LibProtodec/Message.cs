@@ -44,7 +44,7 @@ public sealed class Message : Protobuf
         writer.WriteLine(" {");
         writer.Indent++;
 
-        int[] oneOfs = OneOfs.SelectMany(oneOf => oneOf.Value).ToArray();
+        int[] oneOfs = OneOfs.SelectMany(static oneOf => oneOf.Value).ToArray();
 
         foreach ((int fieldId, (bool, string, string) field) in Fields)
         {

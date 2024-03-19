@@ -104,8 +104,8 @@ public sealed class ProtodecContext
             {
                 string oneOfName = TranslateOneOfName(property.Name);
                 int[] oneOfProtoFieldIds = propertyType.GetFields(BindingFlags.Public | BindingFlags.Static)
-                                                       .Select(field => (int)field.GetRawConstantValue()!)
-                                                       .Where(id => id > 0)
+                                                       .Select(static field => (int)field.GetRawConstantValue()!)
+                                                       .Where(static id => id > 0)
                                                        .ToArray();
 
                 message.OneOfs.Add(oneOfName, oneOfProtoFieldIds);
@@ -242,7 +242,7 @@ public sealed class ProtodecContext
     private string TranslateEnumFieldName(FieldInfo field, string enumName)
     {
         if (field.GetCustomAttributesData()
-                 .SingleOrDefault(attr => attr.AttributeType.Name == "OriginalNameAttribute")
+                 .SingleOrDefault(static attr => attr.AttributeType.Name == "OriginalNameAttribute")
                 ?.ConstructorArguments[0]
                  .Value
             is string originalName)
@@ -280,6 +280,6 @@ public sealed class ProtodecContext
 
     private static bool HasProtocAttribute(MemberInfo member) =>
         member.GetCustomAttributesData()
-              .Any(attr => attr.AttributeType.Name                      == nameof(GeneratedCodeAttribute)
-                        && attr.ConstructorArguments[0].Value as string == "protoc");
+              .Any(static attr => attr.AttributeType.Name                      == nameof(GeneratedCodeAttribute)
+                               && attr.ConstructorArguments[0].Value as string == "protoc");
 }
