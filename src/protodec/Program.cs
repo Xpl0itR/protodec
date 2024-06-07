@@ -1,8 +1,10 @@
 ﻿using System;
 using System.CodeDom.Compiler;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using LibProtodec;
+using LibProtodec.Models;
 
 const string indent = "  ";
 const string help   = """
@@ -11,8 +13,11 @@ const string help   = """
       target_assembly_path  Either the path to the target assembly or a directory of assemblies, all of which be parsed.
       out_path              An existing directory to output into individual files, otherwise output to a single file.
     Options:
-      --skip_enums                                Skip parsing enums and replace references to them with int32.
-      --skip_properties_without_protoc_attribute  Skip properties that aren't decorated with `GeneratedCode("protoc")` when parsing
+      --parse_service_servers                                     Parses gRPC service definitions from server classes.
+      --parse_service_clients                                     Parses gRPC service definitions from client classes.
+      --skip_enums                                                Skip parsing enums and replace references to them with int32.
+      --include_properties_without_non_user_code_attribute        Includes properties that aren't decorated with `DebuggerNonUserCode` when parsing.
+      --include_service_methods_without_generated_code_attribute  Includes methods that aren't decorated with `GeneratedCode("grpc_csharp_plugin")` when parsing gRPC services.
     """;
 
 if (args.Length < 2)
@@ -21,29 +26,63 @@ if (args.Length < 2)
     return;
 }
 
-string assemblyPath                         = args[0];
-string outPath                              = Path.GetFullPath(args[1]);
-bool   skipEnums                            = args.Contains("--skip_enums");
-bool   skipPropertiesWithoutProtocAttribute = args.Contains("--skip_properties_without_protoc_attribute");
+string        assembly = args[0];
+string        outPath  = Path.GetFullPath(args[1]);
+ParserOptions options  = ParserOptions.None;
 
-using AssemblyInspector inspector = new(assemblyPath);
+if (args.Contains("--skip_enums"))
+    options |= ParserOptions.SkipEnums;
+
+if (args.Contains("--include_properties_without_non_user_code_attribute"))
+    options |= ParserOptions.IncludePropertiesWithoutNonUserCodeAttribute;
+
+if (args.Contains("--include_service_methods_without_generated_code_attribute"))
+    options |= ParserOptions.IncludeServiceMethodsWithoutGeneratedCodeAttribute;
+
+using AssemblyInspector inspector = new(assembly);
 ProtodecContext ctx = new();
 
 foreach (Type message in inspector.GetProtobufMessageTypes())
 {
-    ctx.ParseMessage(message, skipEnums, skipPropertiesWithoutProtocAttribute);
+    ctx.ParseMessage(message, options);
+}
+
+if (args.Contains("--parse_service_servers"))
+{
+    foreach (Type service in inspector.GetProtobufServiceServerTypes())
+    {
+        ctx.ParseService(service, options);
+    }
+}
+
+if (args.Contains("--parse_service_clients"))
+{
+    foreach (Type service in inspector.GetProtobufServiceClientTypes())
+    {
+        ctx.ParseService(service, options);
+    }
 }
 
 if (Directory.Exists(outPath))
 {
-    foreach (Protobuf proto in ctx.Protobufs.Values)
-    {
-        string protoPath = Path.Join(outPath, proto.Name + ".proto");
+    HashSet<string> writtenFiles = [];
 
-        using StreamWriter       streamWriter = new(protoPath);
+    foreach (Protobuf protobuf in ctx.Protobufs)
+    {
+        // This workaround stops files from being overwritten in the case of a naming conflict,
+        // however the actual conflict will still have to be resolved manually
+        string fileName = protobuf.FileName;
+        while (!writtenFiles.Add(fileName))
+        {
+            fileName = '_' + fileName;
+        }
+
+        string protobufPath = Path.Join(outPath, fileName);
+
+        using StreamWriter       streamWriter = new(protobufPath);
         using IndentedTextWriter indentWriter = new(streamWriter, indent);
 
-        proto.WriteFileTo(indentWriter);
+        protobuf.WriteTo(indentWriter);
     }
 }
 else

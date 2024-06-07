@@ -35,16 +35,36 @@ public sealed class AssemblyInspector : IDisposable
 
     public IEnumerable<Type> GetProtobufMessageTypes()
     {
-        Type? googleProtobufIMessage = LoadedTypes.SingleOrDefault(static type => type?.FullName == "Google.Protobuf.IMessage", null)
-                                    ?? AssemblyContext.LoadFromAssemblyName("Google.Protobuf")
-                                                      .GetType("Google.Protobuf.IMessage");
-        return from type
-                   in LoadedTypes
-               where !type.IsNested
-                  && type.IsSealed
-                  && type.Namespace?.StartsWith("Google.Protobuf", StringComparison.Ordinal) != true
-                  && type.IsAssignableTo(googleProtobufIMessage)
-               select type;
+        Type? iMessage = LoadedTypes.SingleOrDefault(static type => type?.FullName == "Google.Protobuf.IMessage", null)
+                      ?? AssemblyContext.LoadFromAssemblyName("Google.Protobuf")
+                                        .GetType("Google.Protobuf.IMessage");
+
+        return LoadedTypes.Where(
+            type => type is { IsNested: false, IsSealed: true }
+                 && type.Namespace?.StartsWith("Google.Protobuf", StringComparison.Ordinal) != true
+                 && type.IsAssignableTo(iMessage));
+    }
+
+    public IEnumerable<Type> GetProtobufServiceClientTypes()
+    {
+        Type? clientBase = LoadedTypes.SingleOrDefault(static type => type?.FullName == "Grpc.Core.ClientBase", null)
+                        ?? AssemblyContext.LoadFromAssemblyName("Grpc.Core.Api")
+                                          .GetType("Grpc.Core.ClientBase");
+
+        return LoadedTypes.Where(
+            type => type is { IsNested: true, IsAbstract: false }
+                 && type.IsAssignableTo(clientBase));
+    }
+
+    public IEnumerable<Type> GetProtobufServiceServerTypes()
+    {
+        Type? bindServiceMethodAttribute = LoadedTypes.SingleOrDefault(static type => type?.FullName == "Grpc.Core.BindServiceMethodAttribute", null)
+                                        ?? AssemblyContext.LoadFromAssemblyName("Grpc.Core.Api")
+                                                          .GetType("Grpc.Core.BindServiceMethodAttribute");
+
+        return LoadedTypes.Where(
+            type => type is { IsNested: true, IsAbstract: true, DeclaringType: { IsNested: false, IsSealed: true, IsAbstract: true } }
+                 && type.GetCustomAttributesData().Any(attribute => attribute.AttributeType == bindServiceMethodAttribute));
     }
 
     public void Dispose() =>
