@@ -11,12 +11,14 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 using SystemEx;
 using CommunityToolkit.Diagnostics;
 using LibProtodec.Models;
 using LibProtodec.Models.Fields;
 using LibProtodec.Models.TopLevels;
 using LibProtodec.Models.Types;
+using SystemEx.Memory;
 
 namespace LibProtodec;
 
@@ -69,6 +71,8 @@ public sealed class ProtodecContext
         _parsed.Add(messageClass.FullName ?? messageClass.Name, message);
 
         Protobuf protobuf = GetProtobuf(messageClass, message, options);
+
+        ParseWriteToMethodTesting(messageClass);
 
         FieldInfo[]    idFields   = messageClass.GetFields(PublicStatic);
         PropertyInfo[] properties = messageClass.GetProperties(PublicInstanceDeclared);
@@ -126,6 +130,39 @@ public sealed class ProtodecContext
         }
 
         return message;
+    }
+
+    private static void ParseWriteToMethodTesting(Type messageClass)
+    {
+        MethodInfo   writeTo = messageClass.GetMethod("WriteTo", BindingFlags.Public | BindingFlags.Instance)!;
+        MemoryReader reader  = new(writeTo.GetMethodBody()!.GetILAsByteArray()!);
+
+        int fieldToken = 0;
+        while (reader.Remaining > 0)
+        {
+            OpCode opCode = reader.ReadCilOpCode(out int operandLength);
+            if (opCode == OpCodes.Ret) // DummyDLL from il2cppdumper will only have ret in method body
+                return;
+
+            if (opCode == OpCodes.Ldfld)
+            {
+                fieldToken = reader.ReadInt32LittleEndian();
+            }
+            else if (opCode == OpCodes.Call)
+            {
+                Guard.IsNotEqualTo(fieldToken, 0);
+                int methodToken = reader.ReadInt32LittleEndian();
+
+                MethodBase? method = messageClass.Module.ResolveMethod(methodToken); // System.NotSupportedException: 'Resolving tokens is not supported on assemblies loaded by a MetadataLoadContext.'
+                FieldInfo?  field  = messageClass.Module.ResolveField(fieldToken);
+
+                //TODO
+            }
+            else
+            {
+                reader.Position += operandLength;
+            }
+        }
     }
 
     public Enum ParseEnum(Type enumEnum, ParserOptions options = ParserOptions.None)
