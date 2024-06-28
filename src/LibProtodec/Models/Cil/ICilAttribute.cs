@@ -4,10 +4,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-namespace LibProtodec.Models.Types;
+using System.Collections.Generic;
 
-public sealed class Repeated(IType type) : IType
+namespace LibProtodec.Models.Cil;
+
+public interface ICilAttribute
 {
-    public string Name =>
-        $"repeated {type.Name}";
+    ICilType Type { get; }
+
+    IList<object?> ConstructorArguments { get; }
 }

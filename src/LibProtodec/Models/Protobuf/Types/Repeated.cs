@@ -4,15 +4,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-namespace LibProtodec.Models.Types;
+namespace LibProtodec.Models.Protobuf.Types;
 
-public interface IType
-{
-    string Name { get; }
-}
-
-public sealed class External(string typeName) : IType
+public sealed class Repeated(IProtobufType type) : IProtobufType
 {
     public string Name =>
-        typeName;
+        $"repeated {type.Name}";
 }

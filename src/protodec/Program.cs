@@ -1,10 +1,18 @@
-﻿using System;
+﻿// Copyright © 2024 Xpl0itR
+// 
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using LibProtodec;
-using LibProtodec.Models;
+using LibProtodec.Loaders;
+using LibProtodec.Models.Cil;
+using LibProtodec.Models.Protobuf;
 
 const string indent = "  ";
 const string help   = """
@@ -39,17 +47,17 @@ if (args.Contains("--include_properties_without_non_user_code_attribute"))
 if (args.Contains("--include_service_methods_without_generated_code_attribute"))
     options |= ParserOptions.IncludeServiceMethodsWithoutGeneratedCodeAttribute;
 
-using AssemblyInspector inspector = new(assembly);
+using ICilAssemblyLoader loader = new ClrAssemblyLoader(assembly);
 ProtodecContext ctx = new();
 
-foreach (Type message in inspector.GetProtobufMessageTypes())
+foreach (ICilType message in GetProtobufMessageTypes())
 {
     ctx.ParseMessage(message, options);
 }
 
 if (args.Contains("--parse_service_servers"))
 {
-    foreach (Type service in inspector.GetProtobufServiceServerTypes())
+    foreach (ICilType service in GetProtobufServiceServerTypes())
     {
         ctx.ParseService(service, options);
     }
@@ -57,7 +65,7 @@ if (args.Contains("--parse_service_servers"))
 
 if (args.Contains("--parse_service_clients"))
 {
-    foreach (Type service in inspector.GetProtobufServiceClientTypes())
+    foreach (ICilType service in GetProtobufServiceClientTypes())
     {
         ctx.ParseService(service, options);
     }
@@ -92,3 +100,19 @@ else
 
     ctx.WriteAllTo(indentWriter);
 }
+
+IEnumerable<ICilType> GetProtobufMessageTypes() =>
+    loader.LoadedTypes.Where(
+        type => type is { IsNested: false, IsSealed: true }
+             && type.Namespace?.StartsWith("Google.Protobuf", StringComparison.Ordinal) != true
+             && type.IsAssignableTo(loader.IMessage));
+
+IEnumerable<ICilType> GetProtobufServiceClientTypes() =>
+    loader.LoadedTypes.Where(
+        type => type is { IsNested: true, IsAbstract: false }
+             && type.IsAssignableTo(loader.ClientBase));
+
+IEnumerable<ICilType> GetProtobufServiceServerTypes() =>
+    loader.LoadedTypes.Where(
+        type => type is { IsNested: true, IsAbstract: true, DeclaringType: { IsNested: false, IsSealed: true, IsAbstract: true } }
+             && type.GetCustomAttributes().Any(attribute => attribute.Type == loader.BindServiceMethodAttribute));

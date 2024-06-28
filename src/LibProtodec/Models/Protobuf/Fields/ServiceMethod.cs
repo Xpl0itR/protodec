@@ -5,16 +5,16 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System.CodeDom.Compiler;
-using LibProtodec.Models.TopLevels;
-using LibProtodec.Models.Types;
+using LibProtodec.Models.Protobuf.TopLevels;
+using LibProtodec.Models.Protobuf.Types;
 
-namespace LibProtodec.Models.Fields;
+namespace LibProtodec.Models.Protobuf.Fields;
 
 public sealed class ServiceMethod
 {
-    public required string Name         { get; init; }
-    public required IType  RequestType  { get; init; }
-    public required IType  ResponseType { get; init; }
+    public required string        Name         { get; init; }
+    public required IProtobufType RequestType  { get; init; }
+    public required IProtobufType ResponseType { get; init; }
 
     public bool IsRequestStreamed  { get; init; }
     public bool IsResponseStreamed { get; init; }

@@ -5,16 +5,16 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System.IO;
-using LibProtodec.Models.TopLevels;
-using LibProtodec.Models.Types;
+using LibProtodec.Models.Protobuf.TopLevels;
+using LibProtodec.Models.Protobuf.Types;
 
-namespace LibProtodec.Models.Fields;
+namespace LibProtodec.Models.Protobuf.Fields;
 
 public sealed class MessageField
 {
-    public required IType  Type { get; init; }
-    public required string Name { get; init; }
-    public required int    Id   { get; init; }
+    public required IProtobufType Type { get; init; }
+    public required string        Name { get; init; }
+    public required int           Id   { get; init; }
 
     public bool IsObsolete { get; init; }
     public bool HasHasProp { get; init; }

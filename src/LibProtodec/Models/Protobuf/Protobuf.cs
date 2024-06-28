@@ -8,10 +8,10 @@ using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using LibProtodec.Models.TopLevels;
-using LibProtodec.Models.Types;
+using LibProtodec.Models.Protobuf.TopLevels;
+using LibProtodec.Models.Protobuf.Types;
 
-namespace LibProtodec.Models;
+namespace LibProtodec.Models.Protobuf;
 
 public sealed class Protobuf
 {
@@ -90,7 +90,7 @@ public sealed class Protobuf
         writer.WriteLine(';');
     }
 
-    public static void WriteTypeNameTo(TextWriter writer, IType type, TopLevel topLevel)
+    public static void WriteTypeNameTo(TextWriter writer, IProtobufType type, TopLevel topLevel)
     {
         if (type is TopLevel { Parent: not null } typeTopLevel && typeTopLevel.Parent != topLevel)
         {

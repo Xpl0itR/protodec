@@ -7,14 +7,14 @@
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Linq;
-using LibProtodec.Models.Fields;
-using LibProtodec.Models.Types;
+using LibProtodec.Models.Protobuf.Fields;
+using LibProtodec.Models.Protobuf.Types;
 
-namespace LibProtodec.Models.TopLevels;
+namespace LibProtodec.Models.Protobuf.TopLevels;
 
 public sealed class Message : TopLevel, INestableType
 {
-    public readonly Dictionary<string, int[]>         OneOfs = [];
+    public readonly Dictionary<string, List<int>>     OneOfs = [];
     public readonly Dictionary<int, MessageField>     Fields = [];
     public readonly Dictionary<string, INestableType> Nested = [];
 
@@ -40,7 +40,7 @@ public sealed class Message : TopLevel, INestableType
             field.WriteTo(writer, this, isOneOf: false);
         }
 
-        foreach ((string name, int[] fieldIds) in OneOfs)
+        foreach ((string name, List<int> fieldIds) in OneOfs)
         {
             // ReSharper disable once StringLiteralTypo
             writer.Write("oneof ");

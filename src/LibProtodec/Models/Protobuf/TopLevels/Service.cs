@@ -6,9 +6,9 @@
 
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
-using LibProtodec.Models.Fields;
+using LibProtodec.Models.Protobuf.Fields;
 
-namespace LibProtodec.Models.TopLevels;
+namespace LibProtodec.Models.Protobuf.TopLevels;
 
 public sealed class Service : TopLevel
 {

@@ -10,24 +10,21 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Reflection;
 using SystemEx;
 using CommunityToolkit.Diagnostics;
-using LibProtodec.Models;
-using LibProtodec.Models.Fields;
-using LibProtodec.Models.TopLevels;
-using LibProtodec.Models.Types;
+using LibProtodec.Models.Cil;
+using LibProtodec.Models.Protobuf;
+using LibProtodec.Models.Protobuf.Fields;
+using LibProtodec.Models.Protobuf.TopLevels;
+using LibProtodec.Models.Protobuf.Types;
 
 namespace LibProtodec;
 
-public delegate bool TypeLookupFunc(Type type, [NotNullWhen(true)] out IType? fieldType, out string? import);
+public delegate bool TypeLookupFunc(ICilType cilType, [NotNullWhen(true)] out IProtobufType? protobufType, out string? import);
 public delegate bool NameLookupFunc(string name, [MaybeNullWhen(false)] out string translatedName);
 
 public sealed class ProtodecContext
 {
-    private const BindingFlags PublicStatic           = BindingFlags.Public | BindingFlags.Static;
-    private const BindingFlags PublicInstanceDeclared = BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly;
-
     private readonly Dictionary<string, TopLevel> _parsed = [];
 
     public readonly List<Protobuf> Protobufs = [];
@@ -52,11 +49,11 @@ public sealed class ProtodecContext
         }
     }
 
-    public Message ParseMessage(Type messageClass, ParserOptions options = ParserOptions.None)
+    public Message ParseMessage(ICilType messageClass, ParserOptions options = ParserOptions.None)
     {
         Guard.IsTrue(messageClass is { IsClass: true, IsSealed: true });
 
-        if (_parsed.TryGetValue(messageClass.FullName ?? messageClass.Name, out TopLevel? parsedMessage))
+        if (_parsed.TryGetValue(messageClass.FullName, out TopLevel? parsedMessage))
         {
             return (Message)parsedMessage;
         }
@@ -64,50 +61,48 @@ public sealed class ProtodecContext
         Message message = new()
         {
             Name       = TranslateTypeName(messageClass),
-            IsObsolete = HasObsoleteAttribute(messageClass.GetCustomAttributesData())
+            IsObsolete = HasObsoleteAttribute(messageClass.GetCustomAttributes())
         };
-        _parsed.Add(messageClass.FullName ?? messageClass.Name, message);
+        _parsed.Add(messageClass.FullName, message);
 
         Protobuf protobuf = GetProtobuf(messageClass, message, options);
 
-        FieldInfo[]    idFields   = messageClass.GetFields(PublicStatic);
-        PropertyInfo[] properties = messageClass.GetProperties(PublicInstanceDeclared);
+        List<ICilField> idFields = messageClass.GetFields()
+                                               .Where(static field => field is { IsPublic: true, IsStatic: true, IsLiteral: true })
+                                               .ToList();
 
-        for (int pi = 0, fi = 0; pi < properties.Length; pi++, fi++)
+        List<ICilProperty> properties = messageClass.GetProperties()
+                                                    .Where(static property => property is { IsInherited: false, CanRead: true, Getter: { IsPublic: true, IsStatic: false, IsVirtual: false } })
+                                                    .ToList();
+
+        for (int pi = 0, fi = 0; pi < properties.Count; pi++)
         {
-            PropertyInfo               property   = properties[pi];
-            IList<CustomAttributeData> attributes = property.GetCustomAttributesData();
+            ICilProperty        property   = properties[pi];
+            List<ICilAttribute> attributes = property.GetCustomAttributes().ToList();
 
-            if (((options & ParserOptions.IncludePropertiesWithoutNonUserCodeAttribute) == 0 && !HasNonUserCodeAttribute(attributes))
-             || property.GetMethod?.IsVirtual != false)
+            if (((options & ParserOptions.IncludePropertiesWithoutNonUserCodeAttribute) == 0 && !HasNonUserCodeAttribute(attributes)))
             {
-                fi--;
                 continue;
             }
 
-            Type propertyType = property.PropertyType;
+            ICilType propertyType = property.Type;
 
             // only OneOf enums are defined nested directly in the message class
             if (propertyType.IsEnum && propertyType.DeclaringType?.Name == messageClass.Name)
             {
                 string oneOfName = TranslateOneOfPropName(property.Name);
-                int[] oneOfProtoFieldIds = propertyType.GetFields(PublicStatic)
-                                                       .Select(static field => (int)field.GetRawConstantValue()!)
-                                                       .Where(static id => id > 0)
-                                                       .ToArray();
+                List<int> oneOfProtoFieldIds = propertyType.GetFields()
+                                                           .Where(static field => field.IsLiteral)
+                                                           .Select(static field => (int)field.ConstantValue!)
+                                                           .Where(static id => id > 0)
+                                                           .ToList();
 
                 message.OneOfs.Add(oneOfName, oneOfProtoFieldIds);
-                
-                fi--;
                 continue;
             }
 
-            FieldInfo idField = idFields[fi];
-            Guard.IsTrue(idField.IsLiteral);
-            Guard.IsEqualTo(idField.FieldType.Name, nameof(Int32));
-
             bool msgFieldHasHasProp = false; // some field properties are immediately followed by an additional "Has" get-only boolean property
-            if (properties.Length > pi + 1 && properties[pi + 1].PropertyType.Name == nameof(Boolean) && !properties[pi + 1].CanWrite)
+            if (properties.Count > pi + 1 && properties[pi + 1].Type.Name == nameof(Boolean) && !properties[pi + 1].CanWrite)
             {
                 msgFieldHasHasProp = true;
                 pi++;
@@ -117,22 +112,23 @@ public sealed class ProtodecContext
             {
                 Type       = ParseFieldType(propertyType, options, protobuf),
                 Name       = TranslateMessageFieldName(property.Name),
-                Id         = (int)idField.GetRawConstantValue()!,
+                Id         = (int)idFields[fi].ConstantValue!,
                 IsObsolete = HasObsoleteAttribute(attributes),
                 HasHasProp = msgFieldHasHasProp
             };
 
             message.Fields.Add(field.Id, field);
+            fi++;
         }
 
         return message;
     }
 
-    public Enum ParseEnum(Type enumEnum, ParserOptions options = ParserOptions.None)
+    public Enum ParseEnum(ICilType enumEnum, ParserOptions options = ParserOptions.None)
     {
         Guard.IsTrue(enumEnum.IsEnum);
 
-        if (_parsed.TryGetValue(enumEnum.FullName ?? enumEnum.Name, out TopLevel? parsedEnum))
+        if (_parsed.TryGetValue(enumEnum.FullName, out TopLevel? parsedEnum))
         {
             return (Enum)parsedEnum;
         }
@@ -140,20 +136,22 @@ public sealed class ProtodecContext
         Enum @enum = new()
         {
             Name         = TranslateTypeName(enumEnum),
-            IsObsolete   = HasObsoleteAttribute(enumEnum.GetCustomAttributesData())
+            IsObsolete   = HasObsoleteAttribute(enumEnum.GetCustomAttributes())
         };
-        _parsed.Add(enumEnum.FullName ?? enumEnum.Name, @enum);
+        _parsed.Add(enumEnum.FullName, @enum);
 
         Protobuf protobuf = GetProtobuf(enumEnum, @enum, options);
 
-        foreach (FieldInfo field in enumEnum.GetFields(PublicStatic))
+        foreach (ICilField field in enumEnum.GetFields().Where(static field => field.IsLiteral))
         {
+            List<ICilAttribute> attributes = field.GetCustomAttributes().ToList();
+
             @enum.Fields.Add(
                 new EnumField
                 {
-                    Id         = (int)field.GetRawConstantValue()!,
-                    Name       = TranslateEnumFieldName(field, @enum.Name),
-                    IsObsolete = HasObsoleteAttribute(field.GetCustomAttributesData())
+                    Id         = (int)field.ConstantValue!,
+                    Name       = TranslateEnumFieldName(attributes, field.Name, @enum.Name),
+                    IsObsolete = HasObsoleteAttribute(attributes)
                 });
         }
 
@@ -166,7 +164,7 @@ public sealed class ProtodecContext
         return @enum;
     }
 
-    public Service ParseService(Type serviceClass, ParserOptions options = ParserOptions.None)
+    public Service ParseService(ICilType serviceClass, ParserOptions options = ParserOptions.None)
     {
         Guard.IsTrue(serviceClass.IsClass);
 
@@ -175,9 +173,9 @@ public sealed class ProtodecContext
         {
             if (serviceClass is { IsSealed: true, IsNested: false })
             {
-                Type[] nested = serviceClass.GetNestedTypes();
-                serviceClass  = nested.SingleOrDefault(static nested => nested is { IsAbstract: true, IsSealed: false })
-                             ?? nested.Single(static nested => nested is { IsClass: true, IsAbstract: false });
+                List<ICilType> nested = serviceClass.GetNestedTypes().ToList();
+                serviceClass = nested.SingleOrDefault(static nested => nested is { IsAbstract: true, IsSealed: false }) 
+                            ?? nested.Single(static nested => nested is { IsClass: true, IsAbstract: false });
             }
             
             if (serviceClass is { IsNested: true, IsAbstract: true, IsSealed: false })
@@ -193,7 +191,7 @@ public sealed class ProtodecContext
 
         Guard.IsNotNull(isClientClass);
 
-        if (_parsed.TryGetValue(serviceClass.DeclaringType!.FullName ?? serviceClass.DeclaringType!.Name, out TopLevel? parsedService))
+        if (_parsed.TryGetValue(serviceClass.DeclaringType!.FullName, out TopLevel? parsedService))
         {
             return (Service)parsedService;
         }
@@ -201,23 +199,23 @@ public sealed class ProtodecContext
         Service service = new()
         {
             Name         = TranslateTypeName(serviceClass.DeclaringType),
-            IsObsolete   = HasObsoleteAttribute(serviceClass.GetCustomAttributesData())
+            IsObsolete   = HasObsoleteAttribute(serviceClass.GetCustomAttributes())
         };
-        _parsed.Add(serviceClass.DeclaringType!.FullName ?? serviceClass.DeclaringType.Name, service);
+        _parsed.Add(serviceClass.DeclaringType!.FullName, service);
 
         Protobuf protobuf = NewProtobuf(serviceClass, service);
 
-        foreach (MethodInfo method in serviceClass.GetMethods(PublicInstanceDeclared))
+        foreach (ICilMethod method in serviceClass.GetMethods().Where(static method => method is { IsInherited: false, IsPublic: true, IsStatic: false }))
         {
-            IList<CustomAttributeData> attributes = method.GetCustomAttributesData();
+            List<ICilAttribute> attributes = method.GetCustomAttributes().ToList();
             if ((options & ParserOptions.IncludeServiceMethodsWithoutGeneratedCodeAttribute) == 0
              && !HasGeneratedCodeAttribute(attributes, "grpc_csharp_plugin"))
             {
                 continue;
             }
 
-            Type requestType, responseType, returnType = method.ReturnType;
-            bool streamReq,   streamRes;
+            ICilType requestType, responseType, returnType = method.ReturnType;
+            bool streamReq, streamRes;
 
             if (isClientClass.Value)
             {
@@ -227,14 +225,13 @@ public sealed class ProtodecContext
                     continue;
                 }
 
-                ParameterInfo[] parameters = method.GetParameters();
-                if (parameters.Length > 2)
+                List<ICilType> parameters = method.GetParameterTypes().ToList();
+                if (parameters.Count > 2)
                 {
                     continue;
                 }
 
-                Type firstParamType = parameters[0].ParameterType;
-                switch (returnType.GenericTypeArguments.Length)
+                switch (returnType.GenericTypeArguments.Count)
                 {
                     case 2:
                         requestType  = returnType.GenericTypeArguments[0];
@@ -243,13 +240,13 @@ public sealed class ProtodecContext
                         streamRes    = returnTypeName == "AsyncDuplexStreamingCall`2";
                         break;
                     case 1:
-                        requestType  = firstParamType;
+                        requestType  = parameters[0];
                         responseType = returnType.GenericTypeArguments[0];
                         streamReq    = false;
                         streamRes    = true;
                         break;
                     default:
-                        requestType  = firstParamType;
+                        requestType  = parameters[0];
                         responseType = returnType;
                         streamReq    = false;
                         streamRes    = false;
@@ -258,21 +255,20 @@ public sealed class ProtodecContext
             }
             else
             {
-                ParameterInfo[] parameters     = method.GetParameters();
-                Type            firstParamType = parameters[0].ParameterType;
+                List<ICilType> parameters = method.GetParameterTypes().ToList();
 
-                if (firstParamType.GenericTypeArguments.Length == 1)
+                if (parameters[0].GenericTypeArguments.Count == 1)
                 {
                     streamReq   = true;
-                    requestType = firstParamType.GenericTypeArguments[0];
+                    requestType = parameters[0].GenericTypeArguments[0];
                 }
                 else
                 {
                     streamReq   = false;
-                    requestType = firstParamType;
+                    requestType = parameters[0];
                 }
 
-                if (returnType.GenericTypeArguments.Length == 1)
+                if (returnType.GenericTypeArguments.Count == 1)
                 {
                     streamRes    = false;
                     responseType = returnType.GenericTypeArguments[0];
@@ -280,7 +276,7 @@ public sealed class ProtodecContext
                 else
                 {
                     streamRes    = true;
-                    responseType = parameters[1].ParameterType.GenericTypeArguments[0];
+                    responseType = parameters[1].GenericTypeArguments[0];
                 }
             }
 
@@ -299,9 +295,9 @@ public sealed class ProtodecContext
         return service;
     }
 
-    private IType ParseFieldType(Type type, ParserOptions options, Protobuf referencingProtobuf)
+    private IProtobufType ParseFieldType(ICilType type, ParserOptions options, Protobuf referencingProtobuf)
     {
-        switch (type.GenericTypeArguments.Length)
+        switch (type.GenericTypeArguments.Count)
         {
             case 1:
                 return new Repeated(
@@ -312,7 +308,7 @@ public sealed class ProtodecContext
                     ParseFieldType(type.GenericTypeArguments[1], options, referencingProtobuf));
         }
 
-        if (TypeLookup(type, out IType? fieldType, out string? import))
+        if (TypeLookup(type, out IProtobufType? fieldType, out string? import))
         {
             if (import is not null)
             {
@@ -345,11 +341,11 @@ public sealed class ProtodecContext
         return fieldType;
     }
 
-    private Protobuf NewProtobuf(Type topLevelType, TopLevel topLevel)
+    private Protobuf NewProtobuf(ICilType topLevelType, TopLevel topLevel)
     {
         Protobuf protobuf = new()
         {
-            AssemblyName = topLevelType.Assembly.FullName,
+            AssemblyName = topLevelType.DeclaringAssemblyName,
             Namespace    = topLevelType.Namespace
         };
 
@@ -360,14 +356,14 @@ public sealed class ProtodecContext
         return protobuf;
     }
 
-    private Protobuf GetProtobuf<T>(Type topLevelType, T topLevel, ParserOptions options)
+    private Protobuf GetProtobuf<T>(ICilType topLevelType, T topLevel, ParserOptions options)
         where T : TopLevel, INestableType
     {
         Protobuf protobuf;
         if (topLevelType.IsNested)
         {
-            Type parent = topLevelType.DeclaringType!.DeclaringType!;
-            if (!_parsed.TryGetValue(parent.FullName ?? parent.Name, out TopLevel? parentTopLevel))
+            ICilType parent = topLevelType.DeclaringType!.DeclaringType!;
+            if (!_parsed.TryGetValue(parent.FullName, out TopLevel? parentTopLevel))
             {
                 parentTopLevel = ParseMessage(parent, options);
             }
@@ -421,25 +417,22 @@ public sealed class ProtodecContext
         return translatedName!.ToSnakeCaseLower();
     }
 
-    private string TranslateEnumFieldName(FieldInfo field, string enumName)
+    private string TranslateEnumFieldName(IEnumerable<ICilAttribute> attributes, string fieldName, string enumName)
     {
-        if (field.GetCustomAttributesData()
-                 .SingleOrDefault(static attr => attr.AttributeType.Name == "OriginalNameAttribute")
-                ?.ConstructorArguments[0]
-                 .Value
-            is string originalName)
+        if (attributes.SingleOrDefault(static attr => attr.Type.Name == "OriginalNameAttribute")
+                     ?.ConstructorArguments[0] is string originalName)
         {
             return originalName;
         }
 
-        if (NameLookup?.Invoke(field.Name, out string? fieldName) != true)
+        if (NameLookup?.Invoke(fieldName, out string? translatedName) == true)
         {
-            fieldName = field.Name;
+            fieldName = translatedName;
         }
 
-        if (!IsBeebyted(fieldName!))
+        if (!IsBeebyted(fieldName))
         {
-            fieldName = fieldName!.ToSnakeCaseUpper();
+            fieldName = fieldName.ToSnakeCaseUpper();
         }
 
         if (!IsBeebyted(enumName))
@@ -450,14 +443,12 @@ public sealed class ProtodecContext
         return enumName + '_' + fieldName;
     }
 
-    private string TranslateTypeName(Type type)
+    private string TranslateTypeName(ICilType type)
     {
         if (NameLookup is null)
             return type.Name;
 
-        string? fullName = type.FullName;
-        Guard.IsNotNull(fullName);
-
+        string fullName = type.FullName;
         int genericArgs = fullName.IndexOf('[');
         if (genericArgs != -1)
             fullName = fullName[..genericArgs];
@@ -478,162 +469,162 @@ public sealed class ProtodecContext
         return translatedName;
     }
 
-    public static bool LookupScalarAndWellKnownTypes(Type type, [NotNullWhen(true)] out IType? fieldType, out string? import)
+    public static bool LookupScalarAndWellKnownTypes(ICilType cilType, [NotNullWhen(true)] out IProtobufType? protobufType, out string? import)
     {
-        switch (type.FullName)
+        switch (cilType.FullName)
         {
             case "System.String":
-                import    = null;
-                fieldType = Scalar.String;
+                import = null;
+                protobufType = Scalar.String;
                 return true;
             case "System.Boolean":
-                import    = null;
-                fieldType = Scalar.Bool;
+                import = null;
+                protobufType = Scalar.Bool;
                 return true;
             case "System.Double":
-                import    = null;
-                fieldType = Scalar.Double;
+                import = null;
+                protobufType = Scalar.Double;
                 return true;
             case "System.UInt32":
-                import    = null;
-                fieldType = Scalar.UInt32;
+                import = null;
+                protobufType = Scalar.UInt32;
                 return true;
             case "System.UInt64":
-                import    = null;
-                fieldType = Scalar.UInt64;
+                import = null;
+                protobufType = Scalar.UInt64;
                 return true;
             case "System.Int32":
-                import    = null;
-                fieldType = Scalar.Int32;
+                import = null;
+                protobufType = Scalar.Int32;
                 return true;
             case "System.Int64":
-                import    = null;
-                fieldType = Scalar.Int64;
+                import = null;
+                protobufType = Scalar.Int64;
                 return true;
             case "System.Single":
-                import    = null;
-                fieldType = Scalar.Float;
+                import = null;
+                protobufType = Scalar.Float;
                 return true;
             case "Google.Protobuf.ByteString":
-                import    = null;
-                fieldType = Scalar.Bytes;
+                import = null;
+                protobufType = Scalar.Bytes;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Any":
-                import    = "google/protobuf/any.proto";
-                fieldType = WellKnown.Any;
+                import = "google/protobuf/any.proto";
+                protobufType = WellKnown.Any;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Api":
-                import    = "google/protobuf/api.proto";
-                fieldType = WellKnown.Api;
+                import = "google/protobuf/api.proto";
+                protobufType = WellKnown.Api;
                 return true;
             case "Google.Protobuf.WellKnownTypes.BoolValue":
-                import    = "google/protobuf/wrappers.proto";
-                fieldType = WellKnown.BoolValue;
+                import = "google/protobuf/wrappers.proto";
+                protobufType = WellKnown.BoolValue;
                 return true;
             case "Google.Protobuf.WellKnownTypes.BytesValue":
-                import    = "google/protobuf/wrappers.proto";
-                fieldType = WellKnown.BytesValue;
+                import = "google/protobuf/wrappers.proto";
+                protobufType = WellKnown.BytesValue;
                 return true;
             case "Google.Protobuf.WellKnownTypes.DoubleValue":
-                import    = "google/protobuf/wrappers.proto";
-                fieldType = WellKnown.DoubleValue;
+                import = "google/protobuf/wrappers.proto";
+                protobufType = WellKnown.DoubleValue;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Duration":
-                import    = "google/protobuf/duration.proto";
-                fieldType = WellKnown.Duration;
+                import = "google/protobuf/duration.proto";
+                protobufType = WellKnown.Duration;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Empty":
-                import    = "google/protobuf/empty.proto";
-                fieldType = WellKnown.Empty;
+                import = "google/protobuf/empty.proto";
+                protobufType = WellKnown.Empty;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Enum":
-                import    = "google/protobuf/type.proto";
-                fieldType = WellKnown.Enum;
+                import = "google/protobuf/type.proto";
+                protobufType = WellKnown.Enum;
                 return true;
             case "Google.Protobuf.WellKnownTypes.EnumValue":
-                import    = "google/protobuf/type.proto";
-                fieldType = WellKnown.EnumValue;
+                import = "google/protobuf/type.proto";
+                protobufType = WellKnown.EnumValue;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Field":
-                import    = "google/protobuf/type.proto";
-                fieldType = WellKnown.Field;
+                import = "google/protobuf/type.proto";
+                protobufType = WellKnown.Field;
                 return true;
             case "Google.Protobuf.WellKnownTypes.FieldMask":
-                import    = "google/protobuf/field_mask.proto";
-                fieldType = WellKnown.FieldMask;
+                import = "google/protobuf/field_mask.proto";
+                protobufType = WellKnown.FieldMask;
                 return true;
             case "Google.Protobuf.WellKnownTypes.FloatValue":
-                import    = "google/protobuf/wrappers.proto";
-                fieldType = WellKnown.FloatValue;
+                import = "google/protobuf/wrappers.proto";
+                protobufType = WellKnown.FloatValue;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Int32Value":
-                import    = "google/protobuf/wrappers.proto";
-                fieldType = WellKnown.Int32Value;
+                import = "google/protobuf/wrappers.proto";
+                protobufType = WellKnown.Int32Value;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Int64Value":
-                import    = "google/protobuf/wrappers.proto";
-                fieldType = WellKnown.Int64Value;
+                import = "google/protobuf/wrappers.proto";
+                protobufType = WellKnown.Int64Value;
                 return true;
             case "Google.Protobuf.WellKnownTypes.ListValue":
-                import    = "google/protobuf/struct.proto";
-                fieldType = WellKnown.ListValue;
+                import = "google/protobuf/struct.proto";
+                protobufType = WellKnown.ListValue;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Method":
-                import    = "google/protobuf/api.proto";
-                fieldType = WellKnown.Method;
+                import = "google/protobuf/api.proto";
+                protobufType = WellKnown.Method;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Mixin":
-                import    = "google/protobuf/api.proto";
-                fieldType = WellKnown.Mixin;
+                import = "google/protobuf/api.proto";
+                protobufType = WellKnown.Mixin;
                 return true;
             case "Google.Protobuf.WellKnownTypes.NullValue":
-                import    = "google/protobuf/struct.proto";
-                fieldType = WellKnown.NullValue;
+                import = "google/protobuf/struct.proto";
+                protobufType = WellKnown.NullValue;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Option":
-                import    = "google/protobuf/type.proto";
-                fieldType = WellKnown.Option;
+                import = "google/protobuf/type.proto";
+                protobufType = WellKnown.Option;
                 return true;
             case "Google.Protobuf.WellKnownTypes.SourceContext":
-                import    = "google/protobuf/source_context.proto";
-                fieldType = WellKnown.SourceContext;
+                import = "google/protobuf/source_context.proto";
+                protobufType = WellKnown.SourceContext;
                 return true;
             case "Google.Protobuf.WellKnownTypes.StringValue":
-                import    = "google/protobuf/wrappers.proto";
-                fieldType = WellKnown.StringValue;
+                import = "google/protobuf/wrappers.proto";
+                protobufType = WellKnown.StringValue;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Struct":
-                import    = "google/protobuf/struct.proto";
-                fieldType = WellKnown.Struct;
+                import = "google/protobuf/struct.proto";
+                protobufType = WellKnown.Struct;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Syntax":
-                import    = "google/protobuf/type.proto";
-                fieldType = WellKnown.Syntax;
+                import = "google/protobuf/type.proto";
+                protobufType = WellKnown.Syntax;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Timestamp":
-                import    = "google/protobuf/timestamp.proto";
-                fieldType = WellKnown.Timestamp;
+                import = "google/protobuf/timestamp.proto";
+                protobufType = WellKnown.Timestamp;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Type":
-                import    = "google/protobuf/type.proto";
-                fieldType = WellKnown.Type;
+                import = "google/protobuf/type.proto";
+                protobufType = WellKnown.Type;
                 return true;
             case "Google.Protobuf.WellKnownTypes.UInt32Value":
-                import    = "google/protobuf/wrappers.proto";
-                fieldType = WellKnown.UInt32Value;
+                import = "google/protobuf/wrappers.proto";
+                protobufType = WellKnown.UInt32Value;
                 return true;
             case "Google.Protobuf.WellKnownTypes.UInt64Value":
-                import    = "google/protobuf/wrappers.proto";
-                fieldType = WellKnown.UInt64Value;
+                import = "google/protobuf/wrappers.proto";
+                protobufType = WellKnown.UInt64Value;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Value":
-                import    = "google/protobuf/struct.proto";
-                fieldType = WellKnown.Value;
+                import = "google/protobuf/struct.proto";
+                protobufType = WellKnown.Value;
                 return true;
 
             default:
-                import    = null;
-                fieldType = null;
+                import = null;
+                protobufType = null;
                 return false;
         }
     }
@@ -642,13 +633,13 @@ public sealed class ProtodecContext
     private static bool IsBeebyted(string name) =>
         name.Length == 11 && name.CountUpper() == 11;
 
-    private static bool HasGeneratedCodeAttribute(IEnumerable<CustomAttributeData> attributes, string tool) =>
-        attributes.Any(attr => attr.AttributeType.Name                      == nameof(GeneratedCodeAttribute)
-                            && attr.ConstructorArguments[0].Value as string == tool);
+    private static bool HasGeneratedCodeAttribute(IEnumerable<ICilAttribute> attributes, string tool) =>
+        attributes.Any(attr => attr.Type.Name                         == nameof(GeneratedCodeAttribute)
+                            && attr.ConstructorArguments[0] as string == tool);
 
-    private static bool HasNonUserCodeAttribute(IEnumerable<CustomAttributeData> attributes) =>
-        attributes.Any(static attr => attr.AttributeType.Name == nameof(DebuggerNonUserCodeAttribute));
+    private static bool HasNonUserCodeAttribute(IEnumerable<ICilAttribute> attributes) =>
+        attributes.Any(static attr => attr.Type.Name == nameof(DebuggerNonUserCodeAttribute));
 
-    private static bool HasObsoleteAttribute(IEnumerable<CustomAttributeData> attributes) =>
-        attributes.Any(static attr => attr.AttributeType.Name == nameof(ObsoleteAttribute));
+    private static bool HasObsoleteAttribute(IEnumerable<ICilAttribute> attributes) =>
+        attributes.Any(static attr => attr.Type.Name == nameof(ObsoleteAttribute));
 }

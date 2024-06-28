@@ -4,13 +4,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-global using Enum = LibProtodec.Models.TopLevels.Enum;
+global using Enum = LibProtodec.Models.Protobuf.TopLevels.Enum;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
-using LibProtodec.Models.Fields;
-using LibProtodec.Models.Types;
+using LibProtodec.Models.Protobuf.Fields;
+using LibProtodec.Models.Protobuf.Types;
 
-namespace LibProtodec.Models.TopLevels;
+namespace LibProtodec.Models.Protobuf.TopLevels;
 
 public sealed class Enum : TopLevel, INestableType
 {

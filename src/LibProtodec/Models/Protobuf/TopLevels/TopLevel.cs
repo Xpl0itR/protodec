@@ -7,7 +7,7 @@
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 
-namespace LibProtodec.Models.TopLevels;
+namespace LibProtodec.Models.Protobuf.TopLevels;
 
 public abstract class TopLevel
 {
