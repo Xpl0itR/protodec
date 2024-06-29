@@ -10,9 +10,3 @@ public interface IProtobufType
 {
     string Name { get; }
 }
-
-public sealed class External(string typeName) : IProtobufType
-{
-    public string Name =>
-        typeName;
-}

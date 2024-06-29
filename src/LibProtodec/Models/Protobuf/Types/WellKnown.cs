@@ -6,34 +6,40 @@
 
 namespace LibProtodec.Models.Protobuf.Types;
 
-public static class WellKnown
+public sealed class WellKnown(string typeName, string fileName) : IProtobufType
 {
-    public static readonly IProtobufType Any           = new External("google.protobuf.Any");
-    public static readonly IProtobufType Api           = new External("google.protobuf.Api");
-    public static readonly IProtobufType BoolValue     = new External("google.protobuf.BoolValue");
-    public static readonly IProtobufType BytesValue    = new External("google.protobuf.BytesValue");
-    public static readonly IProtobufType DoubleValue   = new External("google.protobuf.DoubleValue");
-    public static readonly IProtobufType Duration      = new External("google.protobuf.Duration");
-    public static readonly IProtobufType Empty         = new External("google.protobuf.Empty");
-    public static readonly IProtobufType Enum          = new External("google.protobuf.Enum");
-    public static readonly IProtobufType EnumValue     = new External("google.protobuf.EnumValue");
-    public static readonly IProtobufType Field         = new External("google.protobuf.Field");
-    public static readonly IProtobufType FieldMask     = new External("google.protobuf.FieldMask");
-    public static readonly IProtobufType FloatValue    = new External("google.protobuf.FloatValue");
-    public static readonly IProtobufType Int32Value    = new External("google.protobuf.Int32Value");
-    public static readonly IProtobufType Int64Value    = new External("google.protobuf.Int64Value");
-    public static readonly IProtobufType ListValue     = new External("google.protobuf.ListValue");
-    public static readonly IProtobufType Method        = new External("google.protobuf.Method");
-    public static readonly IProtobufType Mixin         = new External("google.protobuf.Mixin");
-    public static readonly IProtobufType NullValue     = new External("google.protobuf.NullValue");
-    public static readonly IProtobufType Option        = new External("google.protobuf.Option");
-    public static readonly IProtobufType SourceContext = new External("google.protobuf.SourceContext");
-    public static readonly IProtobufType StringValue   = new External("google.protobuf.StringValue");
-    public static readonly IProtobufType Struct        = new External("google.protobuf.Struct");
-    public static readonly IProtobufType Syntax        = new External("google.protobuf.Syntax");
-    public static readonly IProtobufType Timestamp     = new External("google.protobuf.Timestamp");
-    public static readonly IProtobufType Type          = new External("google.protobuf.Type");
-    public static readonly IProtobufType UInt32Value   = new External("google.protobuf.UInt32Value");
-    public static readonly IProtobufType UInt64Value   = new External("google.protobuf.UInt64Value");
-    public static readonly IProtobufType Value         = new External("google.protobuf.Value");
+    public string Name =>
+        typeName;
+
+    public string FileName =>
+        fileName;
+
+    public static readonly IProtobufType Any           = new WellKnown("google.protobuf.Any",           "google/protobuf/any.proto");
+    public static readonly IProtobufType Api           = new WellKnown("google.protobuf.Api",           "google/protobuf/api.proto");
+    public static readonly IProtobufType BoolValue     = new WellKnown("google.protobuf.BoolValue",     "google/protobuf/wrappers.proto");
+    public static readonly IProtobufType BytesValue    = new WellKnown("google.protobuf.BytesValue",    "google/protobuf/wrappers.proto");
+    public static readonly IProtobufType DoubleValue   = new WellKnown("google.protobuf.DoubleValue",   "google/protobuf/wrappers.proto");
+    public static readonly IProtobufType Duration      = new WellKnown("google.protobuf.Duration",      "google/protobuf/duration.proto");
+    public static readonly IProtobufType Empty         = new WellKnown("google.protobuf.Empty",         "google/protobuf/empty.proto");
+    public static readonly IProtobufType Enum          = new WellKnown("google.protobuf.Enum",          "google/protobuf/type.proto");
+    public static readonly IProtobufType EnumValue     = new WellKnown("google.protobuf.EnumValue",     "google/protobuf/type.proto");
+    public static readonly IProtobufType Field         = new WellKnown("google.protobuf.Field",         "google/protobuf/type.proto");
+    public static readonly IProtobufType FieldMask     = new WellKnown("google.protobuf.FieldMask",     "google/protobuf/field_mask.proto");
+    public static readonly IProtobufType FloatValue    = new WellKnown("google.protobuf.FloatValue",    "google/protobuf/wrappers.proto");
+    public static readonly IProtobufType Int32Value    = new WellKnown("google.protobuf.Int32Value",    "google/protobuf/wrappers.proto");
+    public static readonly IProtobufType Int64Value    = new WellKnown("google.protobuf.Int64Value",    "google/protobuf/wrappers.proto");
+    public static readonly IProtobufType ListValue     = new WellKnown("google.protobuf.ListValue",     "google/protobuf/struct.proto");
+    public static readonly IProtobufType Method        = new WellKnown("google.protobuf.Method",        "google/protobuf/api.proto");
+    public static readonly IProtobufType Mixin         = new WellKnown("google.protobuf.Mixin",         "google/protobuf/api.proto");
+    public static readonly IProtobufType NullValue     = new WellKnown("google.protobuf.NullValue",     "google/protobuf/struct.proto");
+    public static readonly IProtobufType Option        = new WellKnown("google.protobuf.Option",        "google/protobuf/type.proto");
+    public static readonly IProtobufType SourceContext = new WellKnown("google.protobuf.SourceContext", "google/protobuf/source_context.proto");
+    public static readonly IProtobufType StringValue   = new WellKnown("google.protobuf.StringValue",   "google/protobuf/wrappers.proto");
+    public static readonly IProtobufType Struct        = new WellKnown("google.protobuf.Struct",        "google/protobuf/struct.proto");
+    public static readonly IProtobufType Syntax        = new WellKnown("google.protobuf.Syntax",        "google/protobuf/type.proto");
+    public static readonly IProtobufType Timestamp     = new WellKnown("google.protobuf.Timestamp",     "google/protobuf/timestamp.proto");
+    public static readonly IProtobufType Type          = new WellKnown("google.protobuf.Type",          "google/protobuf/type.proto");
+    public static readonly IProtobufType UInt32Value   = new WellKnown("google.protobuf.UInt32Value",   "google/protobuf/wrappers.proto");
+    public static readonly IProtobufType UInt64Value   = new WellKnown("google.protobuf.UInt64Value",   "google/protobuf/wrappers.proto");
+    public static readonly IProtobufType Value         = new WellKnown("google.protobuf.Value",         "google/protobuf/struct.proto");
 }

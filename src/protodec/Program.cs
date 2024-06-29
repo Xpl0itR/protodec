@@ -9,6 +9,8 @@ using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using AssetRipper.Primitives;
+using LibCpp2IL;
 using LibProtodec;
 using LibProtodec.Loaders;
 using LibProtodec.Models.Cil;
@@ -16,9 +18,11 @@ using LibProtodec.Models.Protobuf;
 
 const string indent = "  ";
 const string help   = """
-    Usage: protodec(.exe) <target_assembly_path> <out_path> [options]
+    Usage: protodec(.exe) <game_assembly_path> <global_metadata_path> <unity_version> <out_path> [options]
     Arguments:
-      target_assembly_path  Either the path to the target assembly or a directory of assemblies, all of which be parsed.
+      game_assembly_path    The path to the game assembly DLL.
+      global_metadata_path  The path to the global-metadata.dat file.
+      unity_version         The version of Unity which was used to create the metadata file or alternatively, the path to the globalgamemanagers or the data.unity3d file.
       out_path              An existing directory to output into individual files, otherwise output to a single file.
     Options:
       --parse_service_servers                                     Parses gRPC service definitions from server classes.
@@ -28,14 +32,16 @@ const string help   = """
       --include_service_methods_without_generated_code_attribute  Includes methods that aren't decorated with `GeneratedCode("grpc_csharp_plugin")` when parsing gRPC services.
     """;
 
-if (args.Length < 2)
+if (args.Length < 4)
 {
     Console.WriteLine(help);
     return;
 }
 
 string        assembly = args[0];
-string        outPath  = Path.GetFullPath(args[1]);
+string        metadata = args[1];
+string        uVersion = args[2];
+string        outPath  = Path.GetFullPath(args[3]);
 ParserOptions options  = ParserOptions.None;
 
 if (args.Contains("--skip_enums"))
@@ -47,7 +53,16 @@ if (args.Contains("--include_properties_without_non_user_code_attribute"))
 if (args.Contains("--include_service_methods_without_generated_code_attribute"))
     options |= ParserOptions.IncludeServiceMethodsWithoutGeneratedCodeAttribute;
 
-using ICilAssemblyLoader loader = new ClrAssemblyLoader(assembly);
+if (!UnityVersion.TryParse(uVersion, out UnityVersion unityVersion, out _))
+{
+    unityVersion = uVersion.EndsWith("globalgamemanagers")
+        ? LibCpp2IlMain.GetVersionFromGlobalGameManagers(
+            File.ReadAllBytes(uVersion))
+        : LibCpp2IlMain.GetVersionFromDataUnity3D(
+            File.OpenRead(uVersion));
+}
+
+using ICilAssemblyLoader loader = new Il2CppAssemblyLoader(assembly, metadata, unityVersion);
 ProtodecContext ctx = new();
 
 foreach (ICilType message in GetProtobufMessageTypes())

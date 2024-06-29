@@ -18,9 +18,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\Cpp2IL\LibCpp2IL\LibCpp2IL.csproj" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
     <PackageReference Include="System.Reflection.MetadataLoadContext" Version="8.0.0" />
-    <PackageReference Include="Xpl0itR.SystemEx" Version="1.1.0" />
+    <PackageReference Include="Xpl0itR.SystemEx" Version="1.2.0" />
   </ItemGroup>
 
 </Project>

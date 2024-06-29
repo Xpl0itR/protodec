@@ -7,21 +7,24 @@
 namespace LibProtodec.Models.Protobuf.Types;
 
 // ReSharper disable StringLiteralTypo
-public static class Scalar
+public sealed class Scalar(string typeName) : IProtobufType
 {
-    public static readonly IProtobufType Bool     = new External("bool");
-    public static readonly IProtobufType Bytes    = new External("bytes");
-    public static readonly IProtobufType Double   = new External("double");
-    public static readonly IProtobufType Fixed32  = new External("fixed32");
-    public static readonly IProtobufType Fixed64  = new External("fixed64");
-    public static readonly IProtobufType Float    = new External("float");
-    public static readonly IProtobufType Int32    = new External("int32");
-    public static readonly IProtobufType Int64    = new External("int64");
-    public static readonly IProtobufType SFixed32 = new External("sfixed32");
-    public static readonly IProtobufType SFixed64 = new External("sfixed64");
-    public static readonly IProtobufType SInt32   = new External("sint32");
-    public static readonly IProtobufType SInt64   = new External("sint64");
-    public static readonly IProtobufType String   = new External("string");
-    public static readonly IProtobufType UInt32   = new External("uint32");
-    public static readonly IProtobufType UInt64   = new External("uint64");
+    public string Name =>
+        typeName;
+
+    public static readonly IProtobufType Bool     = new Scalar("bool");
+    public static readonly IProtobufType Bytes    = new Scalar("bytes");
+    public static readonly IProtobufType Double   = new Scalar("double");
+    public static readonly IProtobufType Fixed32  = new Scalar("fixed32");
+    public static readonly IProtobufType Fixed64  = new Scalar("fixed64");
+    public static readonly IProtobufType Float    = new Scalar("float");
+    public static readonly IProtobufType Int32    = new Scalar("int32");
+    public static readonly IProtobufType Int64    = new Scalar("int64");
+    public static readonly IProtobufType SFixed32 = new Scalar("sfixed32");
+    public static readonly IProtobufType SFixed64 = new Scalar("sfixed64");
+    public static readonly IProtobufType SInt32   = new Scalar("sint32");
+    public static readonly IProtobufType SInt64   = new Scalar("sint64");
+    public static readonly IProtobufType String   = new Scalar("string");
+    public static readonly IProtobufType UInt32   = new Scalar("uint32");
+    public static readonly IProtobufType UInt64   = new Scalar("uint64");
 }

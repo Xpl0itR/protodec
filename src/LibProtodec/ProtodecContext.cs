@@ -20,7 +20,7 @@ using LibProtodec.Models.Protobuf.Types;
 
 namespace LibProtodec;
 
-public delegate bool TypeLookupFunc(ICilType cilType, [NotNullWhen(true)] out IProtobufType? protobufType, out string? import);
+public delegate bool TypeLookupFunc(ICilType cilType, [NotNullWhen(true)] out IProtobufType? protobufType);
 public delegate bool NameLookupFunc(string name, [MaybeNullWhen(false)] out string translatedName);
 
 public sealed class ProtodecContext
@@ -308,34 +308,35 @@ public sealed class ProtodecContext
                     ParseFieldType(type.GenericTypeArguments[1], options, referencingProtobuf));
         }
 
-        if (TypeLookup(type, out IProtobufType? fieldType, out string? import))
+        if (!TypeLookup(type, out IProtobufType? fieldType))
         {
-            if (import is not null)
+            if (type.IsEnum)
             {
-                referencingProtobuf.Imports.Add(import);
+                if ((options & ParserOptions.SkipEnums) > 0)
+                {
+                    return Scalar.Int32;
+                }
+
+                fieldType = ParseEnum(type, options);
             }
-
-            return fieldType;
-        }
-
-        if (type.IsEnum)
-        {
-            if ((options & ParserOptions.SkipEnums) > 0)
+            else
             {
-                return Scalar.Int32;
+                fieldType = ParseMessage(type, options);
             }
-
-            fieldType = ParseEnum(type, options);
-        }
-        else
-        {
-            fieldType = ParseMessage(type, options);
         }
 
-        Protobuf protobuf = ((INestableType)fieldType).Protobuf!;
-        if (referencingProtobuf != protobuf)
+        switch (fieldType)
         {
-            referencingProtobuf.Imports.Add(protobuf.FileName);
+            case WellKnown wellKnown:
+                referencingProtobuf.Imports.Add(
+                    wellKnown.FileName);
+                break;
+            case INestableType nestableType:
+                Protobuf protobuf = nestableType.Protobuf!;
+                if (referencingProtobuf != protobuf)
+                    referencingProtobuf.Imports.Add(
+                        protobuf.FileName);
+                break;
         }
 
         return fieldType;
@@ -419,11 +420,7 @@ public sealed class ProtodecContext
 
     private string TranslateEnumFieldName(IEnumerable<ICilAttribute> attributes, string fieldName, string enumName)
     {
-        if (attributes.SingleOrDefault(static attr => attr.Type.Name == "OriginalNameAttribute")
-                     ?.ConstructorArguments[0] is string originalName)
-        {
-            return originalName;
-        }
+        //TODO: parse original name from first parameter of OriginalNameAttribute constructor
 
         if (NameLookup?.Invoke(fieldName, out string? translatedName) == true)
         {
@@ -469,161 +466,122 @@ public sealed class ProtodecContext
         return translatedName;
     }
 
-    public static bool LookupScalarAndWellKnownTypes(ICilType cilType, [NotNullWhen(true)] out IProtobufType? protobufType, out string? import)
+    public static bool LookupScalarAndWellKnownTypes(ICilType cilType, [NotNullWhen(true)] out IProtobufType? protobufType)
     {
         switch (cilType.FullName)
         {
             case "System.String":
-                import = null;
                 protobufType = Scalar.String;
                 return true;
             case "System.Boolean":
-                import = null;
                 protobufType = Scalar.Bool;
                 return true;
             case "System.Double":
-                import = null;
                 protobufType = Scalar.Double;
                 return true;
             case "System.UInt32":
-                import = null;
                 protobufType = Scalar.UInt32;
                 return true;
             case "System.UInt64":
-                import = null;
                 protobufType = Scalar.UInt64;
                 return true;
             case "System.Int32":
-                import = null;
                 protobufType = Scalar.Int32;
                 return true;
             case "System.Int64":
-                import = null;
                 protobufType = Scalar.Int64;
                 return true;
             case "System.Single":
-                import = null;
                 protobufType = Scalar.Float;
                 return true;
             case "Google.Protobuf.ByteString":
-                import = null;
                 protobufType = Scalar.Bytes;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Any":
-                import = "google/protobuf/any.proto";
                 protobufType = WellKnown.Any;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Api":
-                import = "google/protobuf/api.proto";
                 protobufType = WellKnown.Api;
                 return true;
             case "Google.Protobuf.WellKnownTypes.BoolValue":
-                import = "google/protobuf/wrappers.proto";
                 protobufType = WellKnown.BoolValue;
                 return true;
             case "Google.Protobuf.WellKnownTypes.BytesValue":
-                import = "google/protobuf/wrappers.proto";
                 protobufType = WellKnown.BytesValue;
                 return true;
             case "Google.Protobuf.WellKnownTypes.DoubleValue":
-                import = "google/protobuf/wrappers.proto";
                 protobufType = WellKnown.DoubleValue;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Duration":
-                import = "google/protobuf/duration.proto";
                 protobufType = WellKnown.Duration;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Empty":
-                import = "google/protobuf/empty.proto";
                 protobufType = WellKnown.Empty;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Enum":
-                import = "google/protobuf/type.proto";
                 protobufType = WellKnown.Enum;
                 return true;
             case "Google.Protobuf.WellKnownTypes.EnumValue":
-                import = "google/protobuf/type.proto";
                 protobufType = WellKnown.EnumValue;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Field":
-                import = "google/protobuf/type.proto";
                 protobufType = WellKnown.Field;
                 return true;
             case "Google.Protobuf.WellKnownTypes.FieldMask":
-                import = "google/protobuf/field_mask.proto";
                 protobufType = WellKnown.FieldMask;
                 return true;
             case "Google.Protobuf.WellKnownTypes.FloatValue":
-                import = "google/protobuf/wrappers.proto";
                 protobufType = WellKnown.FloatValue;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Int32Value":
-                import = "google/protobuf/wrappers.proto";
                 protobufType = WellKnown.Int32Value;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Int64Value":
-                import = "google/protobuf/wrappers.proto";
                 protobufType = WellKnown.Int64Value;
                 return true;
             case "Google.Protobuf.WellKnownTypes.ListValue":
-                import = "google/protobuf/struct.proto";
                 protobufType = WellKnown.ListValue;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Method":
-                import = "google/protobuf/api.proto";
                 protobufType = WellKnown.Method;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Mixin":
-                import = "google/protobuf/api.proto";
                 protobufType = WellKnown.Mixin;
                 return true;
             case "Google.Protobuf.WellKnownTypes.NullValue":
-                import = "google/protobuf/struct.proto";
                 protobufType = WellKnown.NullValue;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Option":
-                import = "google/protobuf/type.proto";
                 protobufType = WellKnown.Option;
                 return true;
             case "Google.Protobuf.WellKnownTypes.SourceContext":
-                import = "google/protobuf/source_context.proto";
                 protobufType = WellKnown.SourceContext;
                 return true;
             case "Google.Protobuf.WellKnownTypes.StringValue":
-                import = "google/protobuf/wrappers.proto";
                 protobufType = WellKnown.StringValue;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Struct":
-                import = "google/protobuf/struct.proto";
                 protobufType = WellKnown.Struct;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Syntax":
-                import = "google/protobuf/type.proto";
                 protobufType = WellKnown.Syntax;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Timestamp":
-                import = "google/protobuf/timestamp.proto";
                 protobufType = WellKnown.Timestamp;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Type":
-                import = "google/protobuf/type.proto";
                 protobufType = WellKnown.Type;
                 return true;
             case "Google.Protobuf.WellKnownTypes.UInt32Value":
-                import = "google/protobuf/wrappers.proto";
                 protobufType = WellKnown.UInt32Value;
                 return true;
             case "Google.Protobuf.WellKnownTypes.UInt64Value":
-                import = "google/protobuf/wrappers.proto";
                 protobufType = WellKnown.UInt64Value;
                 return true;
             case "Google.Protobuf.WellKnownTypes.Value":
-                import = "google/protobuf/struct.proto";
                 protobufType = WellKnown.Value;
                 return true;
-
             default:
-                import = null;
                 protobufType = null;
                 return false;
         }
@@ -633,9 +591,11 @@ public sealed class ProtodecContext
     private static bool IsBeebyted(string name) =>
         name.Length == 11 && name.CountUpper() == 11;
 
-    private static bool HasGeneratedCodeAttribute(IEnumerable<ICilAttribute> attributes, string tool) =>
-        attributes.Any(attr => attr.Type.Name                         == nameof(GeneratedCodeAttribute)
-                            && attr.ConstructorArguments[0] as string == tool);
+    private static bool HasGeneratedCodeAttribute(IEnumerable<ICilAttribute> attributes, string tool)
+    {
+        return attributes.Any(attr => attr.Type.Name == nameof(GeneratedCodeAttribute));
+        //TODO: ensure the first argument of the GeneratedCodeAttribute constructor == tool parameter
+    }
 
     private static bool HasNonUserCodeAttribute(IEnumerable<ICilAttribute> attributes) =>
         attributes.Any(static attr => attr.Type.Name == nameof(DebuggerNonUserCodeAttribute));

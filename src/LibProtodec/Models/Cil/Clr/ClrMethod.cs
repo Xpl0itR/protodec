@@ -14,9 +14,6 @@ public sealed class ClrMethod(MethodInfo clrMethod) : ClrMember(clrMethod), ICil
     public bool IsPublic =>
         clrMethod.IsPublic;
 
-    public bool IsNonPublic =>
-        (clrMethod.Attributes & MethodAttributes.Public) == 0;
-
     public bool IsStatic =>
         clrMethod.IsStatic;
 
