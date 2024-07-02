@@ -4,6 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 
@@ -11,6 +12,8 @@ namespace LibProtodec.Models.Cil.Clr;
 
 public abstract class ClrMember(MemberInfo clrMember)
 {
+    private ICilAttribute[]? _customAttributes;
+
     public string Name =>
         clrMember.Name;
 
@@ -23,11 +26,25 @@ public abstract class ClrMember(MemberInfo clrMember)
             : ClrType.GetOrCreate(
                 clrMember.DeclaringType);
 
-    public IEnumerable<ICilAttribute> GetCustomAttributes()
+    public IList<ICilAttribute> CustomAttributes
     {
-        foreach (CustomAttributeData attribute in clrMember.GetCustomAttributesData())
+        get
         {
-            yield return new ClrAttribute(attribute);
+            if (_customAttributes is null)
+            {
+                IList<CustomAttributeData> attributes = clrMember.GetCustomAttributesData();
+
+                _customAttributes = attributes.Count < 1
+                    ? Array.Empty<ICilAttribute>()
+                    : new ICilAttribute[attributes.Count];
+
+                for (int i = 0; i < attributes.Count; i++)
+                {
+                    _customAttributes[i] = new ClrAttribute(attributes[i]);
+                }
+            }
+
+            return _customAttributes;
         }
     }
 }

@@ -12,6 +12,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using SystemEx;
 using CommunityToolkit.Diagnostics;
+using LibCpp2IL;
 using LibProtodec.Models.Cil;
 using LibProtodec.Models.Protobuf;
 using LibProtodec.Models.Protobuf.Fields;
@@ -61,7 +62,7 @@ public sealed class ProtodecContext
         Message message = new()
         {
             Name       = TranslateTypeName(messageClass),
-            IsObsolete = HasObsoleteAttribute(messageClass.GetCustomAttributes())
+            IsObsolete = HasObsoleteAttribute(messageClass.CustomAttributes)
         };
         _parsed.Add(messageClass.FullName, message);
 
@@ -77,10 +78,8 @@ public sealed class ProtodecContext
 
         for (int pi = 0, fi = 0; pi < properties.Count; pi++)
         {
-            ICilProperty        property   = properties[pi];
-            List<ICilAttribute> attributes = property.GetCustomAttributes().ToList();
-
-            if (((options & ParserOptions.IncludePropertiesWithoutNonUserCodeAttribute) == 0 && !HasNonUserCodeAttribute(attributes)))
+            ICilProperty property = properties[pi];
+            if (((options & ParserOptions.IncludePropertiesWithoutNonUserCodeAttribute) == 0 && !HasNonUserCodeAttribute(property.CustomAttributes)))
             {
                 continue;
             }
@@ -113,7 +112,7 @@ public sealed class ProtodecContext
                 Type       = ParseFieldType(propertyType, options, protobuf),
                 Name       = TranslateMessageFieldName(property.Name),
                 Id         = (int)idFields[fi].ConstantValue!,
-                IsObsolete = HasObsoleteAttribute(attributes),
+                IsObsolete = HasObsoleteAttribute(property.CustomAttributes),
                 HasHasProp = msgFieldHasHasProp
             };
 
@@ -136,7 +135,7 @@ public sealed class ProtodecContext
         Enum @enum = new()
         {
             Name         = TranslateTypeName(enumEnum),
-            IsObsolete   = HasObsoleteAttribute(enumEnum.GetCustomAttributes())
+            IsObsolete   = HasObsoleteAttribute(enumEnum.CustomAttributes)
         };
         _parsed.Add(enumEnum.FullName, @enum);
 
@@ -144,14 +143,12 @@ public sealed class ProtodecContext
 
         foreach (ICilField field in enumEnum.GetFields().Where(static field => field.IsLiteral))
         {
-            List<ICilAttribute> attributes = field.GetCustomAttributes().ToList();
-
             @enum.Fields.Add(
                 new EnumField
                 {
                     Id         = (int)field.ConstantValue!,
-                    Name       = TranslateEnumFieldName(attributes, field.Name, @enum.Name),
-                    IsObsolete = HasObsoleteAttribute(attributes)
+                    Name       = TranslateEnumFieldName(field.CustomAttributes, field.Name, @enum.Name),
+                    IsObsolete = HasObsoleteAttribute(field.CustomAttributes)
                 });
         }
 
@@ -199,7 +196,7 @@ public sealed class ProtodecContext
         Service service = new()
         {
             Name         = TranslateTypeName(serviceClass.DeclaringType),
-            IsObsolete   = HasObsoleteAttribute(serviceClass.GetCustomAttributes())
+            IsObsolete   = HasObsoleteAttribute(serviceClass.CustomAttributes)
         };
         _parsed.Add(serviceClass.DeclaringType!.FullName, service);
 
@@ -207,9 +204,8 @@ public sealed class ProtodecContext
 
         foreach (ICilMethod method in serviceClass.GetMethods().Where(static method => method is { IsInherited: false, IsPublic: true, IsStatic: false }))
         {
-            List<ICilAttribute> attributes = method.GetCustomAttributes().ToList();
             if ((options & ParserOptions.IncludeServiceMethodsWithoutGeneratedCodeAttribute) == 0
-             && !HasGeneratedCodeAttribute(attributes, "grpc_csharp_plugin"))
+             && !HasGeneratedCodeAttribute(method.CustomAttributes, "grpc_csharp_plugin"))
             {
                 continue;
             }
@@ -284,7 +280,7 @@ public sealed class ProtodecContext
                 new ServiceMethod
                 {
                     Name               = TranslateMethodName(method.Name),
-                    IsObsolete         = HasObsoleteAttribute(attributes),
+                    IsObsolete         = HasObsoleteAttribute(method.CustomAttributes),
                     RequestType        = ParseFieldType(requestType,  options, protobuf),
                     ResponseType       = ParseFieldType(responseType, options, protobuf),
                     IsRequestStreamed  = streamReq,
@@ -420,7 +416,12 @@ public sealed class ProtodecContext
 
     private string TranslateEnumFieldName(IEnumerable<ICilAttribute> attributes, string fieldName, string enumName)
     {
-        //TODO: parse original name from first parameter of OriginalNameAttribute constructor
+        if (LibCpp2IlMain.MetadataVersion >= 29f //TODO: do not merge into master until il2cpp-specific global is removed
+         && attributes.SingleOrDefault(static attr => attr.Type.Name == "OriginalNameAttribute")
+                     ?.ConstructorArgumentValues[0] is string originalName)
+        {
+            return originalName;
+        }
 
         if (NameLookup?.Invoke(fieldName, out string? translatedName) == true)
         {
@@ -591,11 +592,10 @@ public sealed class ProtodecContext
     private static bool IsBeebyted(string name) =>
         name.Length == 11 && name.CountUpper() == 11;
 
-    private static bool HasGeneratedCodeAttribute(IEnumerable<ICilAttribute> attributes, string tool)
-    {
-        return attributes.Any(attr => attr.Type.Name == nameof(GeneratedCodeAttribute));
-        //TODO: ensure the first argument of the GeneratedCodeAttribute constructor == tool parameter
-    }
+    private static bool HasGeneratedCodeAttribute(IEnumerable<ICilAttribute> attributes, string tool) =>
+        attributes.Any(attr => attr.Type.Name == nameof(GeneratedCodeAttribute)
+                            && (LibCpp2IlMain.MetadataVersion < 29f //TODO: do not merge into master until il2cpp-specific global is removed
+                             || attr.ConstructorArgumentValues[0] as string == tool));
 
     private static bool HasNonUserCodeAttribute(IEnumerable<ICilAttribute> attributes) =>
         attributes.Any(static attr => attr.Type.Name == nameof(DebuggerNonUserCodeAttribute));

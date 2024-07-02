@@ -14,9 +14,9 @@ public interface ICilField
 
     object? ConstantValue { get; }
 
+    IList<ICilAttribute> CustomAttributes { get; }
+
     bool IsLiteral { get; }
     bool IsPublic  { get; }
     bool IsStatic  { get; }
-
-    IEnumerable<ICilAttribute> GetCustomAttributes();
 }

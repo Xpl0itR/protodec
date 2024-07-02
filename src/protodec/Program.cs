@@ -130,4 +130,4 @@ IEnumerable<ICilType> GetProtobufServiceClientTypes() =>
 IEnumerable<ICilType> GetProtobufServiceServerTypes() =>
     loader.LoadedTypes.Where(
         type => type is { IsNested: true, IsAbstract: true, DeclaringType: { IsNested: false, IsSealed: true, IsAbstract: true } }
-             && type.GetCustomAttributes().Any(attribute => attribute.Type == loader.BindServiceMethodAttribute));
+             && type.CustomAttributes.Any(attribute => attribute.Type == loader.BindServiceMethodAttribute));

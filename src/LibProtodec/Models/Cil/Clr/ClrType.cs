@@ -7,7 +7,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using CommunityToolkit.Diagnostics;
 
@@ -18,7 +17,7 @@ public sealed class ClrType : ClrMember, ICilType
     private const BindingFlags Everything = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance;
 
     private readonly Type _clrType;
-    private IList<ICilType>? _genericTypeArguments;
+    private ICilType[]? _genericTypeArguments;
 
     private ClrType(Type clrType) : base(clrType) =>
         _clrType = clrType;
@@ -62,13 +61,13 @@ public sealed class ClrType : ClrMember, ICilType
             {
                 Type[] args = _clrType.GenericTypeArguments;
 
-                if (args.Length < 1)
+                _genericTypeArguments = args.Length < 1
+                    ? Array.Empty<ICilType>()
+                    : new ICilType[args.Length];
+
+                for (int i = 0; i < args.Length; i++)
                 {
-                    _genericTypeArguments = Array.Empty<ICilType>();
-                }
-                else
-                {
-                    _genericTypeArguments = args.Select(GetOrCreate).ToList();
+                    _genericTypeArguments[i] = GetOrCreate(args[i]);
                 }
             }
 

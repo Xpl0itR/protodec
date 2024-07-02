@@ -7,7 +7,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using CommunityToolkit.Diagnostics;
 using LibCpp2IL;
@@ -20,7 +19,7 @@ public sealed class Il2CppType : Il2CppMember, ICilType
 {
     private readonly Il2CppTypeDefinition _il2CppType;
     private readonly Il2CppTypeReflectionData[] _genericArgs;
-    private IList<ICilType>? _genericTypeArguments;
+    private ICilType[]? _genericTypeArguments;
 
     private Il2CppType(Il2CppTypeDefinition il2CppType, Il2CppTypeReflectionData[] genericArgs) =>
         (_il2CppType, _genericArgs) = (il2CppType, genericArgs);
@@ -76,13 +75,13 @@ public sealed class Il2CppType : Il2CppMember, ICilType
         {
             if (_genericTypeArguments is null)
             {
-                if (_genericArgs.Length < 1)
+                _genericTypeArguments = _genericArgs.Length < 1
+                    ? Array.Empty<ICilType>()
+                    : new ICilType[_genericArgs.Length];
+
+                for (int i = 0; i < _genericArgs.Length; i++)
                 {
-                    _genericTypeArguments = Array.Empty<ICilType>();
-                }
-                else
-                {
-                    _genericTypeArguments = _genericArgs.Select(GetOrCreate).ToList();
+                    _genericTypeArguments[i] = GetOrCreate(_genericArgs[i]);
                 }
             }
 
@@ -92,38 +91,42 @@ public sealed class Il2CppType : Il2CppMember, ICilType
 
     public IEnumerable<ICilField> GetFields()
     {
-        for (int idx = _il2CppType.FirstFieldIdx, end = _il2CppType.FirstFieldIdx + _il2CppType.FieldCount; idx < end; idx++)
+        for (int i = 0; i < _il2CppType.FieldCount; i++)
         {
             yield return new Il2CppField(
-                LibCpp2IlMain.TheMetadata!.fieldDefs[idx]);
+                LibCpp2IlMain.TheMetadata!.fieldDefs[
+                    _il2CppType.FirstFieldIdx + i]);
         }
     }
 
     public IEnumerable<ICilMethod> GetMethods()
     {
-        for (int idx = _il2CppType.FirstMethodIdx, end = _il2CppType.FirstMethodIdx + _il2CppType.MethodCount; idx < end; idx++)
+        for (int i = 0; i < _il2CppType.MethodCount; i++)
         {
             yield return new Il2CppMethod(
-                LibCpp2IlMain.TheMetadata!.methodDefs[idx]);
+                LibCpp2IlMain.TheMetadata!.methodDefs[
+                    _il2CppType.FirstMethodIdx + i]);
         }
     }
 
     public IEnumerable<ICilType> GetNestedTypes()
     {
-        for (int idx = _il2CppType.NestedTypesStart, end = _il2CppType.NestedTypesStart + _il2CppType.NestedTypeCount; idx < end; idx++)
+        for (int i = 0; i < _il2CppType.NestedTypeCount; i++)
         {
             yield return GetOrCreate(
                 LibCpp2IlMain.TheMetadata!.typeDefs[
-                    LibCpp2IlMain.TheMetadata.nestedTypeIndices[idx]]);
+                    LibCpp2IlMain.TheMetadata.nestedTypeIndices[
+                        _il2CppType.NestedTypesStart + i]]);
         }
     }
 
     public IEnumerable<ICilProperty> GetProperties()
     {
-        for (int idx = _il2CppType.FirstPropertyId, end = _il2CppType.FirstPropertyId + _il2CppType.PropertyCount; idx < end; idx++)
+        for (int i = 0; i < _il2CppType.PropertyCount; i++)
         {
             yield return new Il2CppProperty(
-                LibCpp2IlMain.TheMetadata!.propertyDefs[idx],
+                LibCpp2IlMain.TheMetadata!.propertyDefs[
+                    _il2CppType.FirstPropertyId + i],
                 _il2CppType);
         }
     }

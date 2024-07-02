@@ -19,7 +19,7 @@ public interface ICilMethod
 
     ICilType ReturnType { get; }
 
-    IEnumerable<ICilAttribute> GetCustomAttributes();
+    IList<ICilAttribute> CustomAttributes { get; }
 
     IEnumerable<ICilType> GetParameterTypes();
 }

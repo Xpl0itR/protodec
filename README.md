@@ -27,7 +27,7 @@ Limitations
 -----------
 - Integers are assumed to be (u)int32/64 as CIL doesn't differentiate between them and sint32/64 and (s)fixed32/64.
 - Package names are not preserved in protobuf compilation so naturally we cannot recover them during decompilation, which may result in naming conflicts.
-- Due to the development branch of Cpp2Il not yet recovering method bodies
+- Due to the development branch of Cpp2Il not yet recovering method bodies, when parsing an Il2Cpp assembly older than metadata version 29
     - The `Name` parameter of `OriginalNameAttribute` is not parsed. In this case, the CIL enum field names are used after conforming them to protobuf conventions.
     - The `Tool` parameter of `GeneratedCodeAttribute` is not compared against when parsing gRPC service methods, which may cause false positives in the event that another tool has generated methods in the service class.
 
