@@ -13,6 +13,7 @@ using LibProtodec;
 using LibProtodec.Loaders;
 using LibProtodec.Models.Cil;
 using LibProtodec.Models.Protobuf;
+using Microsoft.Extensions.Logging;
 
 const string indent = "  ";
 const string help   = """
@@ -21,6 +22,7 @@ const string help   = """
       target_assembly_path  Either the path to the target assembly or a directory of assemblies, all of which be parsed.
       out_path              An existing directory to output into individual files, otherwise output to a single file.
     Options:
+      --debug                                                     Drops the minimum log level to Debug.
       --parse_service_servers                                     Parses gRPC service definitions from server classes.
       --parse_service_clients                                     Parses gRPC service definitions from client classes.
       --skip_enums                                                Skip parsing enums and replace references to them with int32.
@@ -37,6 +39,9 @@ if (args.Length < 2)
 string        assembly = args[0];
 string        outPath  = Path.GetFullPath(args[1]);
 ParserOptions options  = ParserOptions.None;
+LogLevel      logLevel = args.Contains("--debug")
+    ? LogLevel.Debug
+    : LogLevel.Information;
 
 if (args.Contains("--skip_enums"))
     options |= ParserOptions.SkipEnums;
@@ -47,9 +52,21 @@ if (args.Contains("--include_properties_without_non_user_code_attribute"))
 if (args.Contains("--include_service_methods_without_generated_code_attribute"))
     options |= ParserOptions.IncludeServiceMethodsWithoutGeneratedCodeAttribute;
 
-using ICilAssemblyLoader loader = new ClrAssemblyLoader(assembly);
-ProtodecContext ctx = new();
+using ILoggerFactory loggerFactory = LoggerFactory.Create(
+    builder => builder.AddSimpleConsole(static console => console.IncludeScopes = true)
+                      .SetMinimumLevel(logLevel));
+ILogger logger = loggerFactory.CreateLogger("protodec");
 
+logger.LogInformation("Loading target assemblies...");
+using CilAssemblyLoader loader = new ClrAssemblyLoader(
+    assembly, loggerFactory.CreateLogger<ClrAssemblyLoader>());
+
+ProtodecContext ctx = new()
+{
+    Logger = loggerFactory.CreateLogger<ProtodecContext>()
+};
+
+logger.LogInformation("Parsing Protobuf message types...");
 foreach (ICilType message in GetProtobufMessageTypes())
 {
     ctx.ParseMessage(message, options);
@@ -57,6 +74,7 @@ foreach (ICilType message in GetProtobufMessageTypes())
 
 if (args.Contains("--parse_service_servers"))
 {
+    logger.LogInformation("Parsing Protobuf service server types...");
     foreach (ICilType service in GetProtobufServiceServerTypes())
     {
         ctx.ParseService(service, options);
@@ -65,6 +83,7 @@ if (args.Contains("--parse_service_servers"))
 
 if (args.Contains("--parse_service_clients"))
 {
+    logger.LogInformation("Parsing Protobuf service client types...");
     foreach (ICilType service in GetProtobufServiceClientTypes())
     {
         ctx.ParseService(service, options);
@@ -73,8 +92,9 @@ if (args.Contains("--parse_service_clients"))
 
 if (Directory.Exists(outPath))
 {
-    HashSet<string> writtenFiles = [];
+    logger.LogInformation("Writing {count} Protobuf files to \"{path}\"...", ctx.Protobufs.Count, outPath);
 
+    HashSet<string> writtenFiles = [];
     foreach (Protobuf protobuf in ctx.Protobufs)
     {
         // This workaround stops files from being overwritten in the case of a naming conflict,
@@ -95,6 +115,8 @@ if (Directory.Exists(outPath))
 }
 else
 {
+    logger.LogInformation("Writing Protobufs as a single file to \"{path}\"...", outPath);
+
     using StreamWriter       streamWriter = new(outPath);
     using IndentedTextWriter indentWriter = new(streamWriter, indent);
 
@@ -115,4 +137,4 @@ IEnumerable<ICilType> GetProtobufServiceClientTypes() =>
 IEnumerable<ICilType> GetProtobufServiceServerTypes() =>
     loader.LoadedTypes.Where(
         type => type is { IsNested: true, IsAbstract: true, DeclaringType: { IsNested: false, IsSealed: true, IsAbstract: true } }
-             && type.GetCustomAttributes().Any(attribute => attribute.Type == loader.BindServiceMethodAttribute));
+             && type.CustomAttributes.Any(attribute => attribute.Type == loader.BindServiceMethodAttribute));

@@ -28,7 +28,7 @@ public sealed class Service : TopLevel
 
         foreach (ServiceMethod method in Methods)
         {
-            method.WriteTo(writer, this);
+            method.WriteTo(writer);
         }
 
         writer.Indent--;

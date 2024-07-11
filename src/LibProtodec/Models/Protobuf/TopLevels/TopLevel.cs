@@ -6,22 +6,28 @@
 
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using LibProtodec.Models.Protobuf.Types;
 
 namespace LibProtodec.Models.Protobuf.TopLevels;
 
 public abstract class TopLevel
 {
     public required string Name { get; init; }
+
     public bool      IsObsolete { get; init; }
     public Protobuf? Protobuf   { get; set;  }
     public TopLevel? Parent     { get; set;  }
 
-    public string QualifyName(TopLevel topLevel)
+    public string QualifyTypeName(IProtobufType type)
     {
-        List<string> names = [Name];
+        if (type is not TopLevel { Parent: not null } typeTopLevel
+         || typeTopLevel.Parent == this)
+            return type.Name;
 
-        TopLevel? parent = Parent;
-        while (parent is not null && parent != topLevel)
+        List<string> names = [typeTopLevel.Name];
+
+        TopLevel? parent = typeTopLevel.Parent;
+        while (parent is not null && parent != this)
         {
             names.Add(parent.Name);
             parent = parent.Parent;

@@ -10,6 +10,7 @@ Arguments:
   target_assembly_path  Either the path to the target assembly or a directory of assemblies, all of which be parsed.
   out_path              An existing directory to output into individual files, otherwise output to a single file.
 Options:
+  --debug                                                     Drops the minimum log level to Debug.
   --parse_service_servers                                     Parses gRPC service definitions from server classes.
   --parse_service_clients                                     Parses gRPC service definitions from client classes.
   --skip_enums                                                Skip parsing enums and replace references to them with int32.

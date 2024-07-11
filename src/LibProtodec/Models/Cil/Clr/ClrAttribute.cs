@@ -6,37 +6,38 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 
 namespace LibProtodec.Models.Cil.Clr;
 
 public sealed class ClrAttribute(CustomAttributeData clrAttribute) : ICilAttribute
 {
-    private IList<object?>? _constructorArguments;
+    private ICilType?  _type;
+    private object?[]? _constructorArgumentValues;
 
     public ICilType Type =>
-        ClrType.GetOrCreate(clrAttribute.AttributeType);
+        _type ??= ClrType.GetOrCreate(
+            clrAttribute.AttributeType);
 
-    public IList<object?> ConstructorArguments
+    public IList<object?> ConstructorArgumentValues
     {
         get
         {
-            if (_constructorArguments is null)
+            if (_constructorArgumentValues is null)
             {
                 IList<CustomAttributeTypedArgument> args = clrAttribute.ConstructorArguments;
 
-                if (args.Count < 1)
+                _constructorArgumentValues = args.Count < 1
+                    ? Array.Empty<object>()
+                    : new object[args.Count];
+
+                for (int i = 0; i < args.Count; i++)
                 {
-                    _constructorArguments = Array.Empty<object>();
-                }
-                else
-                {
-                    _constructorArguments = args.Select(static arg => arg.Value).ToList();
+                    _constructorArgumentValues[i] = args[i].Value;
                 }
             }
 
-            return _constructorArguments;
+            return _constructorArgumentValues;
         }
     }
 }

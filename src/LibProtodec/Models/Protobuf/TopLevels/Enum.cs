@@ -23,7 +23,7 @@ public sealed class Enum : TopLevel, INestableType
         writer.WriteLine(" {");
         writer.Indent++;
 
-        if (ContainsDuplicateField)
+        if (ContainsDuplicateFieldId)
         {
             Protobuf.WriteOptionTo(writer, "allow_alias", "true");
         }
@@ -49,7 +49,7 @@ public sealed class Enum : TopLevel, INestableType
 
     public bool IsClosed { get; set; }
 
-    private bool ContainsDuplicateField
+    private bool ContainsDuplicateFieldId
     {
         get
         {

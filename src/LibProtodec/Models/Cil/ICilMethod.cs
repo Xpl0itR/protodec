@@ -12,14 +12,15 @@ public interface ICilMethod
 {
     string Name { get; }
 
-    bool IsInherited { get; }
-    bool IsPublic    { get; }
-    bool IsStatic    { get; }
-    bool IsVirtual   { get; }
+    bool IsConstructor { get; }
+    bool IsInherited   { get; }
+    bool IsPublic      { get; }
+    bool IsStatic      { get; }
+    bool IsVirtual     { get; }
 
     ICilType ReturnType { get; }
 
-    IEnumerable<ICilAttribute> GetCustomAttributes();
+    IList<ICilAttribute> CustomAttributes { get; }
 
     IEnumerable<ICilType> GetParameterTypes();
 }

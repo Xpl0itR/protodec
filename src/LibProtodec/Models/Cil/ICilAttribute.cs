@@ -12,5 +12,5 @@ public interface ICilAttribute
 {
     ICilType Type { get; }
 
-    IList<object?> ConstructorArguments { get; }
+    IList<object?> ConstructorArgumentValues { get; }
 }

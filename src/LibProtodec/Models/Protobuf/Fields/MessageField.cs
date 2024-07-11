@@ -10,7 +10,7 @@ using LibProtodec.Models.Protobuf.Types;
 
 namespace LibProtodec.Models.Protobuf.Fields;
 
-public sealed class MessageField
+public sealed class MessageField(Message declaringMessage)
 {
     public required IProtobufType Type { get; init; }
     public required string        Name { get; init; }
@@ -19,14 +19,15 @@ public sealed class MessageField
     public bool IsObsolete { get; init; }
     public bool HasHasProp { get; init; }
 
-    public void WriteTo(TextWriter writer, TopLevel topLevel, bool isOneOf)
+    public void WriteTo(TextWriter writer, bool isOneOf)
     {
         if (HasHasProp && !isOneOf && Type is not Repeated)
         {
             writer.Write("optional ");
         }
 
-        Protobuf.WriteTypeNameTo(writer, Type, topLevel);
+        writer.Write(
+            declaringMessage.QualifyTypeName(Type));
         writer.Write(' ');
         writer.Write(Name);
         writer.Write(" = ");

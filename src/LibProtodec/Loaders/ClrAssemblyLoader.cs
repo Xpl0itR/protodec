@@ -12,14 +12,15 @@ using System.Reflection;
 using CommunityToolkit.Diagnostics;
 using LibProtodec.Models.Cil;
 using LibProtodec.Models.Cil.Clr;
+using Microsoft.Extensions.Logging;
 
 namespace LibProtodec.Loaders;
 
-public sealed class ClrAssemblyLoader : ICilAssemblyLoader
+public sealed class ClrAssemblyLoader : CilAssemblyLoader
 {
     public readonly MetadataLoadContext LoadContext;
 
-    public ClrAssemblyLoader(string assemblyPath)
+    public ClrAssemblyLoader(string assemblyPath, ILogger? logger = null)
     {
         bool isFile = File.Exists(assemblyPath);
         string assemblyDir = isFile
@@ -28,67 +29,33 @@ public sealed class ClrAssemblyLoader : ICilAssemblyLoader
 
         PermissiveAssemblyResolver assemblyResolver = new(
             Directory.EnumerateFiles(assemblyDir, searchPattern: "*.dll"));
-
         LoadContext = new MetadataLoadContext(assemblyResolver);
-        LoadedTypes = isFile
-            ? LoadContext.LoadFromAssemblyPath(assemblyPath)
-                         .GetTypes()
-                         .Select(ClrType.GetOrCreate)
-                         .ToList()
+        
+        IEnumerable<Type> allTypes = isFile
+            ? LoadContext.LoadFromAssemblyPath(assemblyPath).GetTypes()
             : assemblyResolver.AssemblyPathLookup.Values
-                              .SelectMany(path => LoadContext.LoadFromAssemblyPath(path).GetTypes())
-                              .Select(ClrType.GetOrCreate)
-                              .ToList();
+                              .SelectMany(path => LoadContext.LoadFromAssemblyPath(path).GetTypes());
+
+        this.LoadedTypes = allTypes.Where(static type => type.GenericTypeArguments.Length == 0)
+                                   .Select(ClrType.GetOrCreate)
+                                   .ToList();
+
+        logger?.LogLoadedTypeAndAssemblyCount(this.LoadedTypes.Count, LoadContext.GetAssemblies().Count());
     }
 
-    public IReadOnlyList<ICilType> LoadedTypes { get; }
-
-    public ICilType IMessage
+    protected override ICilType FindType(string typeFullName, string assemblySimpleName)
     {
-        get
-        {
-            ICilType? iMessage = LoadedTypes.SingleOrDefault(static type => type?.FullName == "Google.Protobuf.IMessage", null);
-            if (iMessage is not null)
-                return iMessage;
+        ICilType? type = this.LoadedTypes.SingleOrDefault(type => type?.FullName == typeFullName, null);
+        if (type is not null)
+            return type;
 
-            Type? iMessageType = LoadContext.LoadFromAssemblyName("Google.Protobuf").GetType("Google.Protobuf.IMessage");
-            Guard.IsNotNull(iMessageType);
+        Type? clrType = LoadContext.LoadFromAssemblyName(assemblySimpleName).GetType(typeFullName);
+        Guard.IsNotNull(clrType);
 
-            return ClrType.GetOrCreate(iMessageType);
-        }
+        return ClrType.GetOrCreate(clrType);
     }
 
-    public ICilType ClientBase
-    {
-        get
-        {
-            ICilType? clientBase = LoadedTypes.SingleOrDefault(static type => type?.FullName == "Grpc.Core.ClientBase", null);
-            if (clientBase is not null)
-                return clientBase;
-
-            Type? clientBaseType = LoadContext.LoadFromAssemblyName("Grpc.Core.Api").GetType("Grpc.Core.ClientBase");
-            Guard.IsNotNull(clientBaseType);
-
-            return ClrType.GetOrCreate(clientBaseType);
-        }
-    }
-
-    public ICilType BindServiceMethodAttribute
-    {
-        get
-        {
-            ICilType? attribute = LoadedTypes.SingleOrDefault(static type => type?.FullName == "Grpc.Core.BindServiceMethodAttribute", null);
-            if (attribute is not null)
-                return attribute;
-
-            Type? attributeType = LoadContext.LoadFromAssemblyName("Grpc.Core.Api").GetType("Grpc.Core.BindServiceMethodAttribute");
-            Guard.IsNotNull(attributeType);
-
-            return ClrType.GetOrCreate(attributeType);
-        }
-    }
-
-    public void Dispose() =>
+    public override void Dispose() =>
         LoadContext.Dispose();
 
     /// <summary>

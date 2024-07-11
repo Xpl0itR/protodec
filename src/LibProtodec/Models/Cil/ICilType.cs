@@ -26,7 +26,7 @@ public interface ICilType
 
     IList<ICilType> GenericTypeArguments { get; }
 
-    IEnumerable<ICilAttribute> GetCustomAttributes();
+    IList<ICilAttribute> CustomAttributes { get; }
 
     IEnumerable<ICilField> GetFields();
 

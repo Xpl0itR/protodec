@@ -10,7 +10,7 @@ using LibProtodec.Models.Protobuf.Types;
 
 namespace LibProtodec.Models.Protobuf.Fields;
 
-public sealed class ServiceMethod
+public sealed class ServiceMethod(Service declaringService)
 {
     public required string        Name         { get; init; }
     public required IProtobufType RequestType  { get; init; }
@@ -20,7 +20,7 @@ public sealed class ServiceMethod
     public bool IsResponseStreamed { get; init; }
     public bool IsObsolete         { get; init; }
 
-    public void WriteTo(IndentedTextWriter writer, TopLevel topLevel)
+    public void WriteTo(IndentedTextWriter writer)
     {
         writer.Write("rpc ");
         writer.Write(Name);
@@ -31,7 +31,8 @@ public sealed class ServiceMethod
             writer.Write("stream ");
         }
 
-        Protobuf.WriteTypeNameTo(writer, RequestType, topLevel);
+        writer.Write(
+            declaringService.QualifyTypeName(RequestType));
         writer.Write(") returns (");
 
         if (IsResponseStreamed)
@@ -39,7 +40,8 @@ public sealed class ServiceMethod
             writer.Write("stream ");
         }
 
-        Protobuf.WriteTypeNameTo(writer, ResponseType, topLevel);
+        writer.Write(
+            declaringService.QualifyTypeName(ResponseType));
         writer.Write(')');
 
         if (IsObsolete)

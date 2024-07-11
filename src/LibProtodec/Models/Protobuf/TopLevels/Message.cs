@@ -37,7 +37,7 @@ public sealed class Message : TopLevel, INestableType
             if (oneOfs.Contains(field.Id))
                 continue;
 
-            field.WriteTo(writer, this, isOneOf: false);
+            field.WriteTo(writer, isOneOf: false);
         }
 
         foreach ((string name, List<int> fieldIds) in OneOfs)
@@ -50,7 +50,7 @@ public sealed class Message : TopLevel, INestableType
 
             foreach (int fieldId in fieldIds)
             {
-                Fields[fieldId].WriteTo(writer, this, isOneOf: true);
+                Fields[fieldId].WriteTo(writer, isOneOf: true);
             }
 
             writer.Indent--;

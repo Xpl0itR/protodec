@@ -9,15 +9,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using LibProtodec.Models.Protobuf.TopLevels;
-using LibProtodec.Models.Protobuf.Types;
 
 namespace LibProtodec.Models.Protobuf;
 
 public sealed class Protobuf
 {
+    private string? _fileName;
     private HashSet<string>? _imports;
-    public  HashSet<string> Imports =>
-        _imports ??= [];
 
     public readonly List<TopLevel> TopLevels = [];
 
@@ -26,7 +24,10 @@ public sealed class Protobuf
     public string? Namespace    { get; init; }
 
     public string FileName =>
-        $"{TopLevels.FirstOrDefault()?.Name}.proto";
+        _fileName ??= $"{string.Join('_', TopLevels.Select(static topLevel => topLevel.Name))}.proto";
+
+    public HashSet<string> Imports =>
+        _imports ??= [];
 
     public void WriteTo(IndentedTextWriter writer)
     {
@@ -88,18 +89,5 @@ public sealed class Protobuf
         }
 
         writer.WriteLine(';');
-    }
-
-    public static void WriteTypeNameTo(TextWriter writer, IProtobufType type, TopLevel topLevel)
-    {
-        if (type is TopLevel { Parent: not null } typeTopLevel && typeTopLevel.Parent != topLevel)
-        {
-            writer.Write(
-                typeTopLevel.QualifyName(topLevel));
-        }
-        else
-        {
-            writer.Write(type.Name);
-        }
     }
 }

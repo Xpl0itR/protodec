@@ -11,11 +11,11 @@ namespace LibProtodec.Models.Cil.Clr;
 
 public sealed class ClrMethod(MethodInfo clrMethod) : ClrMember(clrMethod), ICilMethod
 {
+    public bool IsConstructor =>
+        clrMethod.IsConstructor;
+
     public bool IsPublic =>
         clrMethod.IsPublic;
-
-    public bool IsNonPublic =>
-        (clrMethod.Attributes & MethodAttributes.Public) == 0;
 
     public bool IsStatic =>
         clrMethod.IsStatic;
@@ -24,7 +24,8 @@ public sealed class ClrMethod(MethodInfo clrMethod) : ClrMember(clrMethod), ICil
         clrMethod.IsVirtual;
 
     public ICilType ReturnType =>
-        ClrType.GetOrCreate(clrMethod.ReturnType);
+        ClrType.GetOrCreate(
+            clrMethod.ReturnType);
 
     public IEnumerable<ICilType> GetParameterTypes()
     {

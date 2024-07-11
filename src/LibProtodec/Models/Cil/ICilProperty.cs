@@ -20,5 +20,5 @@ public interface ICilProperty
     ICilMethod? Getter { get; }
     ICilMethod? Setter { get; }
 
-    IEnumerable<ICilAttribute> GetCustomAttributes();
+    IList<ICilAttribute> CustomAttributes { get; }
 }
