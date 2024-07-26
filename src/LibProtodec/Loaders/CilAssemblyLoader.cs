@@ -6,27 +6,42 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using LibProtodec.Models.Cil;
 
 namespace LibProtodec.Loaders;
 
 public abstract class CilAssemblyLoader : IDisposable
 {
-    private ICilType? _iMessage;
-    private ICilType? _clientBase;
-    private ICilType? _bindServiceMethodAttribute;
-
-    // ReSharper disable once InconsistentNaming
-    public ICilType IMessage =>
-        _iMessage ??= FindType("Google.Protobuf.IMessage", "Google.Protobuf");
-
-    public ICilType ClientBase =>
-        _clientBase ??= FindType("Grpc.Core.ClientBase", "Grpc.Core.Api");
-
-    public ICilType BindServiceMethodAttribute =>
-        _bindServiceMethodAttribute ??= FindType("Grpc.Core.BindServiceMethodAttribute", "Grpc.Core.Api");
-
     public IReadOnlyList<ICilType> LoadedTypes { get; protected init; }
+
+    public IEnumerable<ICilType> GetProtobufMessageTypes()
+    {
+        ICilType iMessage = FindType("Google.Protobuf.IMessage", "Google.Protobuf");
+
+        return LoadedTypes.Where(
+            type => type is { IsNested: false, IsSealed: true }
+                 && type.Namespace?.StartsWith("Google.Protobuf", StringComparison.Ordinal) != true
+                 && type.IsAssignableTo(iMessage));
+    }
+
+    public IEnumerable<ICilType> GetProtobufServiceClientTypes()
+    {
+        ICilType clientBase = FindType("Grpc.Core.ClientBase", "Grpc.Core.Api");
+
+        return LoadedTypes.Where(
+            type => type is { IsNested: true, IsAbstract: false }
+                 && type.IsAssignableTo(clientBase));
+    }
+
+    public IEnumerable<ICilType> GetProtobufServiceServerTypes()
+    {
+        ICilType bindServiceMethodAttribute = FindType("Grpc.Core.BindServiceMethodAttribute", "Grpc.Core.Api");
+
+        return LoadedTypes.Where(
+            type => type is { IsNested: true, IsAbstract: true, DeclaringType: { IsNested: false, IsSealed: true, IsAbstract: true } }
+                 && type.CustomAttributes.Any(attribute => attribute.Type == bindServiceMethodAttribute));
+    }
 
     public virtual void Dispose() { }
 

@@ -12,7 +12,8 @@
 
   <ItemGroup>
     <ProjectReference Include="$(SolutionDir)src\LibProtodec\LibProtodec.csproj" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.0-preview.5.24306.7" />
+    <PackageReference Include="ConsoleAppFramework" Version="5.2.2" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.0-preview.6.24327.7" />
   </ItemGroup>
 
 </Project>

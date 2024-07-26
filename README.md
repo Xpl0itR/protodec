@@ -5,17 +5,19 @@ A tool to decompile protobuf classes compiled by [protoc](https://github.com/pro
 Usage
 -----
 ```
-Usage: protodec(.exe) <target_assembly_path> <out_path> [options]
+Usage: [arguments...] [options...] [-h|--help] [--version]
+
 Arguments:
-  target_assembly_path  Either the path to the target assembly or a directory of assemblies, all of which be parsed.
-  out_path              An existing directory to output into individual files, otherwise output to a single file.
+  [0] <string>    Either the path to the target assembly or a directory of assemblies, all of which be parsed.
+  [1] <string>    An existing directory to output into individual files, otherwise output to a single file.
+
 Options:
-  --debug                                                     Drops the minimum log level to Debug.
-  --parse_service_servers                                     Parses gRPC service definitions from server classes.
-  --parse_service_clients                                     Parses gRPC service definitions from client classes.
-  --skip_enums                                                Skip parsing enums and replace references to them with int32.
-  --include_properties_without_non_user_code_attribute        Includes properties that aren't decorated with `DebuggerNonUserCode` when parsing.
-  --include_service_methods_without_generated_code_attribute  Includes methods that aren't decorated with `GeneratedCode("grpc_csharp_plugin")` when parsing gRPC services.
+  --skip-enums                                                  Skip parsing enums and replace references to them with int32. (Optional)
+  --include-properties-without-non-user-code-attribute          Includes properties that aren't decorated with `DebuggerNonUserCode` when parsing. (Optional)
+  --include-service-methods-without-generated-code-attribute    Includes methods that aren't decorated with `GeneratedCode("grpc_csharp_plugin")` when parsing gRPC services. (Optional)
+  --parse-service-servers                                       Parses gRPC service definitions from server classes. (Optional)
+  --parse-service-clients                                       Parses gRPC service definitions from client classes. (Optional)
+  --log-level <LogLevel>                                        Logging severity level. (Default: Information)
 ```
 
 Limitations

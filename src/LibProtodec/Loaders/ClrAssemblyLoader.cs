@@ -20,7 +20,7 @@ public sealed class ClrAssemblyLoader : CilAssemblyLoader
 {
     public readonly MetadataLoadContext LoadContext;
 
-    public ClrAssemblyLoader(string assemblyPath, ILogger? logger = null)
+    public ClrAssemblyLoader(string assemblyPath, ILogger<ClrAssemblyLoader>? logger = null)
     {
         bool isFile = File.Exists(assemblyPath);
         string assemblyDir = isFile
