@@ -11,7 +11,7 @@ using LibProtodec.Models.Cil;
 
 namespace LibProtodec.Loaders;
 
-public abstract class CilAssemblyLoader : IDisposable
+public abstract class CilAssemblyLoader
 {
     public IReadOnlyList<ICilType> LoadedTypes { get; protected init; }
 
@@ -42,8 +42,6 @@ public abstract class CilAssemblyLoader : IDisposable
             type => type is { IsNested: true, IsAbstract: true, DeclaringType: { IsNested: false, IsSealed: true, IsAbstract: true } }
                  && type.CustomAttributes.Any(attribute => attribute.Type == bindServiceMethodAttribute));
     }
-
-    public virtual void Dispose() { }
 
     protected abstract ICilType FindType(string typeFullName, string assemblySimpleName);
 }

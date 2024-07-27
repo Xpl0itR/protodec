@@ -15,6 +15,9 @@ public sealed class ClrAttribute(CustomAttributeData clrAttribute) : ICilAttribu
     private ICilType?  _type;
     private object?[]? _constructorArgumentValues;
 
+    public bool CanReadConstructorArgumentValues =>
+        true;
+
     public ICilType Type =>
         _type ??= ClrType.GetOrCreate(
             clrAttribute.AttributeType);

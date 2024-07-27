@@ -572,7 +572,7 @@ public class ProtodecContext
 
     protected string TranslateEnumFieldName(IEnumerable<ICilAttribute> attributes, string fieldName, string enumName)
     {
-        if (attributes.SingleOrDefault(static attr => attr.Type.Name == "OriginalNameAttribute")
+        if (attributes.SingleOrDefault(static attr => attr is { CanReadConstructorArgumentValues: true, Type.Name: "OriginalNameAttribute" })
                      ?.ConstructorArgumentValues[0] is string originalName)
         {
             return originalName;
@@ -627,8 +627,9 @@ public class ProtodecContext
         name.Length == 11 && name.CountUpper() == 11;
 
     protected static bool HasGeneratedCodeAttribute(IEnumerable<ICilAttribute> attributes, string tool) =>
-        attributes.Any(attr => attr.Type.Name                              == nameof(GeneratedCodeAttribute)
-                            && attr.ConstructorArgumentValues[0] as string == tool);
+        attributes.Any(attr => attr.Type.Name == nameof(GeneratedCodeAttribute)
+                            && (!attr.CanReadConstructorArgumentValues
+                             || attr.ConstructorArgumentValues[0] as string == tool));
 
     protected static bool HasNonUserCodeAttribute(IEnumerable<ICilAttribute> attributes) =>
         attributes.Any(static attr => attr.Type.Name == nameof(DebuggerNonUserCodeAttribute));

@@ -16,7 +16,7 @@ using Microsoft.Extensions.Logging;
 
 namespace LibProtodec.Loaders;
 
-public sealed class ClrAssemblyLoader : CilAssemblyLoader
+public sealed class ClrAssemblyLoader : CilAssemblyLoader, IDisposable
 {
     public readonly MetadataLoadContext LoadContext;
 
@@ -55,7 +55,7 @@ public sealed class ClrAssemblyLoader : CilAssemblyLoader
         return ClrType.GetOrCreate(clrType);
     }
 
-    public override void Dispose() =>
+    public void Dispose() =>
         LoadContext.Dispose();
 
     /// <summary>

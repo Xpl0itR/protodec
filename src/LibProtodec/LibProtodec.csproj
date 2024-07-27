@@ -20,6 +20,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0-preview.6.24327.7" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+    <PackageReference Include="Samboy063.LibCpp2IL" Version="2022.1.0-development.1027" />
     <PackageReference Include="System.Reflection.MetadataLoadContext" Version="9.0.0-preview.6.24327.7" />
     <PackageReference Include="Xpl0itR.SystemEx" Version="1.2.0" />
   </ItemGroup>
