@@ -14,9 +14,10 @@ public interface ICilType
     string  FullName  { get; }
     string? Namespace { get; }
 
-    string    DeclaringAssemblyName { get; }
-    ICilType? DeclaringType         { get; }
-    ICilType? BaseType              { get; }
+    string     DeclaringAssemblyName { get; }
+    ICilModule DeclaringModule       { get; }
+    ICilType?  DeclaringType         { get; }
+    ICilType?  BaseType              { get; }
 
     bool IsAbstract { get; }
     bool IsClass    { get; }
