@@ -6,6 +6,7 @@
 
 using System.Collections.Generic;
 using System.Reflection;
+using CommunityToolkit.Diagnostics;
 
 namespace LibProtodec.Models.Cil.Clr;
 
@@ -35,4 +36,8 @@ public sealed class ClrMethod(MethodInfo clrMethod) : ClrMember(clrMethod), ICil
                 parameter.ParameterType);
         }
     }
+
+    public byte[] GetMethodBodyILAsByteArray() =>
+        clrMethod.GetMethodBody()?.GetILAsByteArray()
+     ?? ThrowHelper.ThrowNotSupportedException<byte[]>();
 }

@@ -10,7 +10,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Reflection.Emit;
 using SystemEx;
+using SystemEx.Memory;
 using CommunityToolkit.Diagnostics;
 using LibProtodec.Models.Cil;
 using LibProtodec.Models.Protobuf;
@@ -68,6 +70,8 @@ public class ProtodecContext
         _parsed.Add(messageClass.FullName, message);
 
         Protobuf protobuf = GetProtobuf(messageClass, message, options);
+
+        ParseWriteToMethodTesting(messageClass);
 
         List<ICilField> idFields = messageClass.GetFields()
                                                .Where(static field => field is { IsPublic: true, IsStatic: true, IsLiteral: true })
@@ -135,6 +139,39 @@ public class ProtodecContext
 
         Logger?.LogParsedMessage(message.Name);
         return message;
+    }
+
+    private static void ParseWriteToMethodTesting(ICilType messageClass)
+    {
+        ICilMethod   writeTo = messageClass.GetMethods().Single(static method => method.Name == "WriteTo");
+        MemoryReader reader  = new(writeTo.GetMethodBodyILAsByteArray());
+
+        int fieldToken = 0;
+        while (reader.Remaining > 0)
+        {
+            OpCode opCode = reader.ReadCilOpCode(out int operandLength);
+            if (opCode == OpCodes.Ret) // DummyDLL from il2cppdumper will only have ret in method body
+                return;
+
+            if (opCode == OpCodes.Ldfld)
+            {
+                fieldToken = reader.ReadInt32LittleEndian();
+            }
+            else if (opCode == OpCodes.Call)
+            {
+                Guard.IsNotEqualTo(fieldToken, 0);
+                int methodToken = reader.ReadInt32LittleEndian();
+
+                string methodName = messageClass.DeclaringModule.ResolveMethodName(methodToken); // System.NotSupportedException: 'Resolving tokens is not supported on assemblies loaded by a MetadataLoadContext.'
+                string fieldName  = messageClass.DeclaringModule.ResolveFieldName(fieldToken);
+
+                //TODO
+            }
+            else
+            {
+                reader.Position += operandLength;
+            }
+        }
     }
 
     public virtual Enum ParseEnum(ICilType enumEnum, ParserOptions options = ParserOptions.None)

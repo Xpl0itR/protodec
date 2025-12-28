@@ -31,6 +31,10 @@ public sealed class ClrType : ClrMember, ICilType
     public string DeclaringAssemblyName =>
         _clrType.Assembly.FullName!;
 
+    public ICilModule DeclaringModule =>
+        ClrModule.GetOrCreate(
+            _clrType.Module);
+
     public ICilType? BaseType =>
         _clrType.BaseType is null
             ? null

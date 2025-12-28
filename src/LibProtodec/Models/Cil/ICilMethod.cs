@@ -23,4 +23,6 @@ public interface ICilMethod
     IList<ICilAttribute> CustomAttributes { get; }
 
     IEnumerable<ICilType> GetParameterTypes();
+
+    byte[] GetMethodBodyILAsByteArray();
 }
