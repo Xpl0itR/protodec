@@ -12,6 +12,7 @@ using CommunityToolkit.Diagnostics;
 using LibCpp2IL;
 using LibCpp2IL.BinaryStructures;
 using LibCpp2IL.Metadata;
+using BinIl2CppType = LibCpp2IL.BinaryStructures.Il2CppType;
 
 namespace LibProtodec.Models.Cil.Il2Cpp;
 
@@ -30,7 +31,7 @@ public abstract class Il2CppMember
                     int attrTypeRngIdx = LibCpp2IlMain.MetadataVersion <= 24f
                         ? CustomAttributeIndex
                         : BinarySearchToken(
-                            LibCpp2IlMain.TheMetadata!.attributeTypeRanges,
+                            LibCpp2IlMain.TheMetadata!.attributeTypeRanges!,
                             Token,
                             DeclaringAssembly.customAttributeStart,
                             (int)DeclaringAssembly.customAttributeCount);
@@ -38,14 +39,14 @@ public abstract class Il2CppMember
                     if (attrTypeRngIdx < 0)
                         return _customAttributes = Array.Empty<ICilAttribute>();
 
-                    Il2CppCustomAttributeTypeRange attrTypeRng = LibCpp2IlMain.TheMetadata!.attributeTypeRanges[attrTypeRngIdx];
+                    Il2CppCustomAttributeTypeRange attrTypeRng = LibCpp2IlMain.TheMetadata!.attributeTypeRanges![attrTypeRngIdx];
 
                     _customAttributes = new ICilAttribute[attrTypeRng.count];
                     for (int attrTypeIdx = 0; attrTypeIdx < attrTypeRng.count; attrTypeIdx++)
                     {
-                        int typeIndex = LibCpp2IlMain.TheMetadata.attributeTypes[attrTypeRng.start + attrTypeIdx];
-                        var type      = LibCpp2IlMain.Binary!.GetType(typeIndex);
-                        var typeDef   = LibCpp2IlMain.TheMetadata.typeDefs[type.Data.ClassIndex];
+                        int typeIndex = LibCpp2IlMain.TheMetadata.attributeTypes![attrTypeRng.start + attrTypeIdx];
+                        var type      = LibCpp2IlMain.Binary!.GetType(Il2CppVariableWidthIndex<BinIl2CppType>.MakeTemporaryForFixedWidthUsage(typeIndex));
+                        var typeDef   = LibCpp2IlMain.TheMetadata.typeDefs[type.Data.ClassIndex.Value];
 
                         _customAttributes[attrTypeIdx] = new Il2CppAttribute(typeDef, null);
                     }
@@ -53,7 +54,7 @@ public abstract class Il2CppMember
                 else
                 {
                     int attrDataRngIdx = BinarySearchToken(
-                        LibCpp2IlMain.TheMetadata!.AttributeDataRanges,
+                        LibCpp2IlMain.TheMetadata!.AttributeDataRanges!,
                         Token,
                         DeclaringAssembly.customAttributeStart,
                         (int)DeclaringAssembly.customAttributeCount);
@@ -61,11 +62,11 @@ public abstract class Il2CppMember
                     if (attrDataRngIdx < 0)
                         return _customAttributes = Array.Empty<ICilAttribute>();
 
-                    Il2CppCustomAttributeDataRange attrDataRange   = LibCpp2IlMain.TheMetadata.AttributeDataRanges[attrDataRngIdx];
-                    Il2CppCustomAttributeDataRange attrDataRngNext = LibCpp2IlMain.TheMetadata.AttributeDataRanges[attrDataRngIdx + 1];
+                    Il2CppCustomAttributeDataRange attrDataRange   = LibCpp2IlMain.TheMetadata.AttributeDataRanges![attrDataRngIdx];
+                    Il2CppCustomAttributeDataRange attrDataRngNext = LibCpp2IlMain.TheMetadata.AttributeDataRanges![attrDataRngIdx + 1];
 
-                    long   attrDataStart = LibCpp2IlMain.TheMetadata.metadataHeader.attributeDataOffset + attrDataRange.startOffset;
-                    long   attrDataEnd   = LibCpp2IlMain.TheMetadata.metadataHeader.attributeDataOffset + attrDataRngNext.startOffset;
+                    long   attrDataStart = LibCpp2IlMain.TheMetadata.metadataHeader.attributeData.Offset + attrDataRange.startOffset;
+                    long   attrDataEnd   = LibCpp2IlMain.TheMetadata.metadataHeader.attributeData.Offset + attrDataRngNext.startOffset;
                     byte[] attrData      = LibCpp2IlMain.TheMetadata.ReadByteArrayAtRawAddress(attrDataStart, (int)(attrDataEnd - attrDataStart));
 
                     MemoryReader reader = new(attrData);
@@ -104,7 +105,7 @@ public abstract class Il2CppMember
                         }
 
                         Il2CppMethodDefinition attrCtor = LibCpp2IlMain.TheMetadata.methodDefs[ctorIndices[i]];
-                        Il2CppTypeDefinition   attrType = LibCpp2IlMain.TheMetadata.typeDefs[attrCtor.declaringTypeIdx];
+                        Il2CppTypeDefinition   attrType = LibCpp2IlMain.TheMetadata.typeDefs[attrCtor.declaringTypeIdx.Value];
 
                         _customAttributes[i] = new Il2CppAttribute(attrType, ctorArgValues);
                     }
@@ -209,7 +210,7 @@ public abstract class Il2CppMember
                 return ReadSzArray(ref reader);
             case Il2CppTypeEnum.IL2CPP_TYPE_IL2CPP_TYPE_INDEX:
                 int typeIndex = ReadUnityCompressedInt32(ref reader);
-                return LibCpp2IlMain.Binary!.GetType(typeIndex);
+                return LibCpp2IlMain.Binary!.GetType(Il2CppVariableWidthIndex<BinIl2CppType>.MakeTemporaryForFixedWidthUsage(typeIndex));
             case Il2CppTypeEnum.IL2CPP_TYPE_BOOLEAN:
                 return reader.ReadBoolean();
             case Il2CppTypeEnum.IL2CPP_TYPE_CHAR:
@@ -247,11 +248,10 @@ public abstract class Il2CppMember
     private static Il2CppTypeEnum ReadEnumUnderlyingType(ref MemoryReader reader)
     {
         int typeIdx        = ReadUnityCompressedInt32(ref reader);
-        var enumType       = LibCpp2IlMain.Binary!.GetType(typeIdx);
-        var underlyingType = LibCpp2IlMain.Binary.GetType(
-            enumType.AsClass().ElementTypeIndex);
+        var enumType       = LibCpp2IlMain.Binary!.GetType(Il2CppVariableWidthIndex<BinIl2CppType>.MakeTemporaryForFixedWidthUsage(typeIdx));
+        var enumTypeDef    = enumType.AsClass();
 
-        return underlyingType.Type;
+        return enumTypeDef.EnumUnderlyingType.Type;
     }
 
     private static object?[]? ReadSzArray(ref MemoryReader reader)

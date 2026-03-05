@@ -46,7 +46,7 @@ public sealed class Il2CppType : Il2CppMember, ICilType
             : null;
 
     public ICilType? BaseType =>
-        _il2CppType.ParentIndex == -1
+        _il2CppType.ParentIndex.IsNull
             ? null
             : GetOrCreate(
                 LibCpp2ILUtils.GetTypeReflectionData(
@@ -64,7 +64,7 @@ public sealed class Il2CppType : Il2CppMember, ICilType
         _il2CppType.IsEnumType;
 
     public bool IsNested =>
-        _il2CppType.DeclaringTypeIndex >= 0;
+        _il2CppType.DeclaringTypeIndex.IsNonNull;
 
     public bool IsSealed =>
         (_il2CppType.Attributes & TypeAttributes.Sealed) != 0;
@@ -91,43 +91,45 @@ public sealed class Il2CppType : Il2CppMember, ICilType
 
     public IEnumerable<ICilField> GetFields()
     {
-        for (int i = 0; i < _il2CppType.FieldCount; i++)
+        Il2CppFieldDefinition[]? fields = _il2CppType.Fields;
+        if (fields is null) yield break;
+
+        foreach (Il2CppFieldDefinition field in fields)
         {
-            yield return new Il2CppField(
-                LibCpp2IlMain.TheMetadata!.fieldDefs[
-                    _il2CppType.FirstFieldIdx + i]);
+            yield return new Il2CppField(field);
         }
     }
 
     public IEnumerable<ICilMethod> GetMethods()
     {
-        for (int i = 0; i < _il2CppType.MethodCount; i++)
+        Il2CppMethodDefinition[]? methods = _il2CppType.Methods;
+        if (methods is null) yield break;
+
+        foreach (Il2CppMethodDefinition method in methods)
         {
-            yield return new Il2CppMethod(
-                LibCpp2IlMain.TheMetadata!.methodDefs[
-                    _il2CppType.FirstMethodIdx + i]);
+            yield return new Il2CppMethod(method);
         }
     }
 
     public IEnumerable<ICilType> GetNestedTypes()
     {
-        for (int i = 0; i < _il2CppType.NestedTypeCount; i++)
+        Il2CppTypeDefinition[]? nestedTypes = _il2CppType.NestedTypes;
+        if (nestedTypes is null) yield break;
+
+        foreach (Il2CppTypeDefinition nestedType in nestedTypes)
         {
-            yield return GetOrCreate(
-                LibCpp2IlMain.TheMetadata!.typeDefs[
-                    LibCpp2IlMain.TheMetadata.nestedTypeIndices[
-                        _il2CppType.NestedTypesStart + i]]);
+            yield return GetOrCreate(nestedType);
         }
     }
 
     public IEnumerable<ICilProperty> GetProperties()
     {
-        for (int i = 0; i < _il2CppType.PropertyCount; i++)
+        Il2CppPropertyDefinition[]? properties = _il2CppType.Properties;
+        if (properties is null) yield break;
+
+        foreach (Il2CppPropertyDefinition property in properties)
         {
-            yield return new Il2CppProperty(
-                LibCpp2IlMain.TheMetadata!.propertyDefs[
-                    _il2CppType.FirstPropertyId + i],
-                _il2CppType);
+            yield return new Il2CppProperty(property, _il2CppType);
         }
     }
 

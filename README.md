@@ -33,6 +33,26 @@ Limitations
     - The `Name` parameter of `OriginalNameAttribute` is not parsed. In this case, the CIL enum field names are used after conforming them to protobuf conventions.
     - The `Tool` parameter of `GeneratedCodeAttribute` is not compared against when parsing gRPC service methods, which may cause false positives in the event that another tool has generated methods in the service class.
 
+Development
+-----------
+### Prerequisites
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) or later
+
+### Build
+```
+dotnet build protodec.sln
+```
+
+### Publish a standalone executable
+The project uses Native AOT compilation. You must publish via the **solution** (not the `.csproj` directly) because `$(SolutionDir)` is used in project references.
+
+| Target | Command |
+|---|---|
+| Windows x64 | `dotnet publish protodec.sln -c Release -r win-x64` |
+| Linux x64 | `dotnet publish protodec.sln -c Release -r linux-x64` |
+
+Output will be located in `bin/protodec/Release/net8.0/<rid>/publish/`.
+
 License
 -------
 This project is subject to the terms of the [Mozilla Public License, v. 2.0](./LICENSE).

@@ -22,23 +22,23 @@ public sealed class Il2CppProperty(Il2CppPropertyDefinition il2CppProperty, Il2C
         false;
 
     public bool CanRead =>
-        il2CppProperty.get >= 0;
+        il2CppProperty.get.IsNonNull;
 
     public bool CanWrite =>
-        il2CppProperty.set >= 0;
+        il2CppProperty.set.IsNonNull;
 
     public ICilMethod? Getter =>
         CanRead
             ? _getter ??= new Il2CppMethod(
                 LibCpp2IlMain.TheMetadata!.methodDefs[
-                    declaringType.FirstMethodIdx + il2CppProperty.get])
+                    (declaringType.FirstMethodIdx + il2CppProperty.get).Value])
             : null;
 
     public ICilMethod? Setter =>
         CanWrite
             ? _setter ??= new Il2CppMethod(
                 LibCpp2IlMain.TheMetadata!.methodDefs[
-                    declaringType.FirstMethodIdx + il2CppProperty.set])
+                    (declaringType.FirstMethodIdx + il2CppProperty.set).Value])
             : null;
 
     public ICilType Type =>

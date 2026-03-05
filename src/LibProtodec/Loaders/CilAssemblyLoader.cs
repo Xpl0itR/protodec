@@ -13,7 +13,8 @@ namespace LibProtodec.Loaders;
 
 public abstract class CilAssemblyLoader
 {
-    public IReadOnlyList<ICilType> LoadedTypes { get; protected init; }
+    // Null-forgiving: always initialized by derived classes via protected init
+    public IReadOnlyList<ICilType> LoadedTypes { get; protected init; } = null!;
 
     public IEnumerable<ICilType> GetProtobufMessageTypes()
     {
