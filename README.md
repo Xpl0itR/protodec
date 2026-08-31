@@ -1,3 +1,5 @@
+
+
 protodec
 ========
 A tool to derive Protobuf schemas from [protoc](https://github.com/protocolbuffers/protobuf) output formats.
@@ -41,7 +43,7 @@ Limitations
     
 Building
 --------
-Essentially just replicate the [CI instructions](.github/workflows/release.yml).
+Essentially just replicate the [CI instructions](.github/workflows/release.yml). A .NET 10 SDK is required.
 
 
 License
